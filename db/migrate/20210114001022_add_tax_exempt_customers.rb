@@ -1,4 +1,4 @@
-class AddTaxExemptCustomers < ActiveRecord::Migration[5.2]
+class AddTaxExemptCustomers < ActiveRecord::Migration[5.1]
   def change
     create_table :super_good_solidus_taxjar_customers do |t|
       t.references :user, null: false

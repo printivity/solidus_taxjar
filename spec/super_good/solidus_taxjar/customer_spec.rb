@@ -46,7 +46,7 @@ RSpec.describe SuperGood::SolidusTaxjar::Customer do
         taxjar_exempt_regions: [
           SuperGood::SolidusTaxjar::ExemptRegion.new(state: state_california, approved: true),
         ],
-        )
+      )
     end
 
     it "throws an error when a user a nil" do

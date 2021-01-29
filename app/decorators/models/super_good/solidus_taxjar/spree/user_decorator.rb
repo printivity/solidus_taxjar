@@ -9,10 +9,6 @@ module SuperGood
           base.accepts_nested_attributes_for :taxjar_customer
         end
 
-        def foo
-          'bar'
-        end
-
         ::Spree.user_class.prepend self
       end
     end

@@ -18,6 +18,11 @@ module SuperGood
             end
         end
 
+        #ADNAN: temp fix until we have a solution
+        def reorder_params(order)
+          order_params(order)
+        end
+
         def address_params(address)
           [
             address.zipcode,

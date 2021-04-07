@@ -46,7 +46,10 @@ module SuperGood
     self.logging_enabled = false
     self.shipping_calculator = ->(order) { order.shipment_total }
     self.shipping_tax_label_maker = ->(shipment, shipping_tax) { "Sales Tax" }
-    self.taxable_address_check = ->(address) { true }
+    self.taxable_address_check = ->(address) {
+      nexus_regions = ::SuperGood::SolidusTaxjar.api.nexus_regions
+      nexus_regions.map(&:region_code).include?(address.state.abbr)
+    }
     self.taxable_order_check = ->(order) { true }
     self.test_mode = false
   end

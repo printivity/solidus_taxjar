@@ -85,7 +85,58 @@ RSpec.describe ::SuperGood::SolidusTaxjar::TaxRateCalculator do
       end
     end
 
-    context "when the API encounters an error" do
+    context "when the API encounters an error and default rates are present" do
+      let(:address) { complete_address }
+
+      let(:state_california) do
+        Spree::State.create!(
+          abbr: "CA",
+          country: country_us,
+          name: "California"
+        )
+      end
+
+      let(:spree_zone) do
+        Spree::Zone.create!(
+          name: "CA zone",
+          description: "CA zone for taxes"
+        )
+      end
+
+      let(:spree_zone_member) do
+        Spree::ZoneMember.create!(
+          zonable: state_california,
+          zone: spree_zone
+        )
+      end
+
+      let(:spree_tax_rate) do
+        Spree::Zone.create!(
+          amount: BigDecimal(0.08),
+          zone: spree_zone,
+          name: "CA tax rate"
+        )
+      end
+
+      before do
+        allow(dummy_api).to receive(:tax_rate_for).and_raise("A bad thing happened.")
+      end
+
+      it "calls the configured error handler" do
+        expect(SuperGood::SolidusTaxjar.exception_handler).to receive(:call) do |e|
+          expect(e).to be_a StandardError
+          expect(e.message).to eq "A bad thing happened."
+        end
+
+        subject
+      end
+
+      it "returns the default rate" do
+        expect(subject).to eq spree_tax_rate.amount
+      end
+    end
+
+    context "when the API encounters an error and default rates are not present" do
       let(:address) { complete_address }
 
       before do

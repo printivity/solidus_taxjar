@@ -14,9 +14,9 @@ module SuperGood
         cache do
           api.tax_rate_for(address).to_d
         end
-      rescue => e
+      rescue StandardError, Rack::Timeout::RequestTimeoutException => e
         exception_handler.call(e)
-        no_rate
+        ::SuperGood::SolidusTaxJar.fallback_tax_rate_calculator.call(address) || no_rate
       end
 
       private

@@ -19,6 +19,8 @@ module SuperGood
       attr_accessor :custom_order_params
       attr_accessor :discount_calculator
       attr_accessor :exception_handler
+      attr_accessor :fallback_tax_calculator
+      attr_accessor :fallback_tax_rate_calculator
       attr_accessor :line_item_tax_label_maker
       attr_accessor :logging_enabled
       attr_accessor :shipping_calculator
@@ -42,6 +44,8 @@ module SuperGood
     self.exception_handler = ->(e) {
       Rails.logger.error "An error occurred while fetching TaxJar tax rates - #{e}: #{e.message}"
     }
+    self.fallback_tax_calculator = ::Spree::TaxCalculator::Default
+    self.fallback_tax_rate_calculator =  -> (address) { ::Spree::TaxRate.for_address(address)&.first&.amount }
     self.line_item_tax_label_maker = ->(taxjar_line_item, spree_line_item) { "Sales Tax" }
     self.logging_enabled = false
     self.shipping_calculator = ->(order) { order.shipments.sum(&:total_before_tax) }

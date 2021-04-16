@@ -23,9 +23,9 @@ module SuperGood
             shipment_taxes: shipment_taxes
           )
         end
-      rescue => e
+      rescue StandardError, Rack::Timeout::RequestTimeoutException => e
         exception_handler.call(e)
-        no_tax
+        ::SuperGood::SolidusTaxJar.fallback_tax_calculator.new(line_item).calculate
       end
 
       private

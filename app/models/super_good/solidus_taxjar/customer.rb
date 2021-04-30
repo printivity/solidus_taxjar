@@ -3,7 +3,7 @@ module SuperGood
     class Customer < ::Spree::Base
       self.table_name = "super_good_solidus_taxjar_customers"
 
-      EXEMPTION_TYPES = %w[wholesale government marketplace other]
+      EXEMPTION_TYPES = %w[wholesale government other]
 
       belongs_to :user, class_name: ::Spree::UserClassHandle.new, inverse_of: :taxjar_customer
       belongs_to :address, class_name: 'Spree::Address'

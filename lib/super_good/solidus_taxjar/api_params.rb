@@ -127,8 +127,8 @@ module SuperGood
             line_items: valid_line_items(line_items).map do |line_item|
               {
                 id: line_item.id,
-                quantity: line_item.quantity,
-                unit_price: SuperGood::SolidusTaxjar.line_item_unit_price_calculator.call(line_item),
+                quantity: 1,
+                unit_price: line_item.total,
                 discount: discount(line_item),
                 product_tax_code: line_item.tax_category&.tax_code
               }

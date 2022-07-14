@@ -1,6 +1,6 @@
 module SuperGood
-  module SolidusTaxjar
-    module ApiParams
+  module SolidusTaxJar
+    module APIParams
       class << self
         def order_params(order)
           {}
@@ -9,13 +9,6 @@ module SuperGood
             .merge(line_items_params(order.line_items))
             .merge(shipping: shipping(order))
             .merge(SuperGood::SolidusTaxjar.custom_order_params.call(order))
-            .tap do |params|
-              next unless SuperGood::SolidusTaxjar.logging_enabled
-
-              Rails.logger.info(
-                "TaxJar params for #{order.number}: #{params.inspect}"
-              )
-            end
         end
 
         #ADNAN: temp fix until we have a solution
@@ -42,17 +35,39 @@ module SuperGood
           }.merge(order_address_params(address))
         end
 
-        def transaction_params(order)
+        def transaction_params(order, transaction_id = order.number)
           {}
             .merge(customer_id(order))
             .merge(order_address_params(order.tax_address))
             .merge(transaction_line_items_params(order.line_items))
             .merge(
-              transaction_id: order.number,
+              transaction_id: transaction_id,
               transaction_date: order.completed_at.to_formatted_s(:iso8601),
               amount: [order.total - order.additional_tax_total, 0].max,
               shipping: shipping(order),
               sales_tax: sales_tax(order)
+            )
+        end
+
+        def refund_transaction_params(spree_order, taxjar_order)
+          {}
+            .merge(order_address_params(spree_order.tax_address))
+            .merge(
+              {
+                transaction_id: TransactionIdGenerator.refund_transaction_id(taxjar_order.transaction_id),
+                transaction_reference_id: taxjar_order.transaction_id,
+                transaction_date: spree_order.completed_at.to_formatted_s(:iso8601),
+                amount: -1 * taxjar_order.amount,
+                sales_tax: -1 * taxjar_order.sales_tax,
+                shipping: -1 * taxjar_order.shipping,
+                line_items: taxjar_order.line_items.map { |line_item|
+                  line_item.to_h.merge({
+                    unit_price: line_item.unit_price * -1,
+                    discount:  line_item.discount * -1,
+                    sales_tax: line_item.sales_tax * -1
+                  })
+                }
+              }
             )
         end
 
@@ -74,10 +89,10 @@ module SuperGood
         def validate_address_params(spree_address)
           {
             country: spree_address.country&.iso,
-            state: spree_address.state&.abbr || adddress.state_name,
+            state: spree_address.state&.abbr || spree_address.state_name,
             zip: spree_address.zipcode,
             city: spree_address.city,
-            street: spree_address.address1
+            street: [spree_address.address1, spree_address.address2].compact.join(' ')
           }
         end
 
@@ -143,6 +158,7 @@ module SuperGood
                 id: line_item.id,
                 quantity: line_item.quantity,
                 product_identifier: line_item.sku,
+                description: line_item.variant.descriptive_name,
                 product_tax_code: line_item.tax_category&.tax_code,
                 unit_price: SuperGood::SolidusTaxjar.line_item_unit_price_calculator.call(line_item),
                 discount: discount(line_item),

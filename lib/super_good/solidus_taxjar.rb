@@ -27,6 +27,7 @@ module SuperGood
       attr_accessor :line_item_tax_label_maker
       attr_accessor :line_item_unit_price_calculator
       attr_accessor :logging_enabled
+      attr_accessor :reportable_order_check
       attr_accessor :reporting_ui_enabled
       attr_accessor :shipping_calculator
       attr_accessor :shipping_tax_label_maker
@@ -71,6 +72,7 @@ module SuperGood
     self.line_item_unit_price_calculator = ->(spree_line_item) { spree_line_item.price }
     self.logging_enabled = false
 
+    self.reportable_order_check = ->(order) { true }
     # The reporting setting in the admin UI is disabled for now till the reporting
     # feature is fully implemented.
     self.reporting_ui_enabled = false

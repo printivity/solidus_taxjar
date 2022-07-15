@@ -10,11 +10,14 @@ module SuperGood
 
         event_action :report_transaction, event_name: :shipment_shipped
         event_action :replace_transaction, event_name: :order_recalculated
+        event_action :create_refund, event_name: :reimbursement_reimbursed
 
         def report_transaction(event)
           return unless SuperGood::SolidusTaxjar.configuration.preferred_reporting_enabled
 
-          SuperGood::SolidusTaxjar::ReportTransactionJob.perform_later(event.payload[:shipment].order)
+          if reportable_order?(order)
+            SuperGood::SolidusTaxjar::ReportTransactionJob.perform_later(event.payload[:shipment].order)
+          end
         end
 
         def replace_transaction(event)
@@ -22,8 +25,19 @@ module SuperGood
 
           return unless SuperGood::SolidusTaxjar.configuration.preferred_reporting_enabled
 
-          if transaction_replaceable?(order) && amount_changed?(order)
-            SuperGood::SolidusTaxjar::ReplaceTransactionJob.perform_later(event.payload[:order])
+          if reportable_order?(order) && transaction_replaceable?(order) && amount_changed?(order)
+            SuperGood::SolidusTaxjar::ReplaceTransactionJob.perform_later(order)
+          end
+        end
+
+        def create_refund(event)
+          reimbursement = event.payload[:reimbursement]
+          order = reimbursement.order
+
+          return unless SuperGood::SolidusTaxjar.configuration.preferred_reporting_enabled
+
+          if reportable_order?(order) && transaction_refundable?(order)
+            SuperGood::SolidusTaxjar::ReportRefundJob.perform_later(reimbursement)
           end
         end
 
@@ -34,11 +48,17 @@ module SuperGood
             (order.total - order.additional_tax_total)
         end
 
+        def reportable_order?(order)
+          SuperGood::SolidusTaxjar.reportable_order_check.call(order)
+        end
+
         def transaction_replaceable?(order)
           order.taxjar_order_transactions.present? &&
             order.complete? &&
               order.payment_state == "paid"
         end
+        alias transaction_refundable? transaction_replaceable?
+
       end
     end
   end

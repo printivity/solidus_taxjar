@@ -5,6 +5,10 @@ module SuperGood
         @api = api
       end
 
+      def create_refund(reimbursement)
+        @api.create_refund_for(reimbursement)
+      end
+
       def refund_and_create_new_transaction(order)
         @api.create_refund_transaction_for(order)
         if transaction_response = @api.create_transaction_for(order)

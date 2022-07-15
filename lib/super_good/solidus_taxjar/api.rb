@@ -89,6 +89,8 @@ module SuperGood
 
       def show_customer_for(user)
         taxjar_client.show_customer user.id
+      rescue Taxjar::Error::NotFound
+        nil
       end
 
       def create_customer_for(user)

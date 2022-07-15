@@ -1,0 +1,12 @@
+<p class="field" id="state">
+  <%= f.label :state, t(:state) %>
+
+  <%=  f.collection_select(:state_id, Spree::Country.find(214).states,
+                           :id, :name,
+                           {:include_blank => true},
+                           {:class => 'required select2'})
+  %>
+</p>
+<p>
+  <%= f.file_field :tax_exemption_document, direct_upload: true %>
+</p>

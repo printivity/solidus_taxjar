@@ -1,0 +1,29 @@
+<fieldset class="user-shipping-account-form">
+  <legend>Fields</legend>
+
+  <% if flash[:error] %>
+    <div class="flash_error">
+      <%= flash[:error] %>.
+    </div>
+  <% end %>
+
+  <div class="field-block col-6">
+    <div class="field">
+      <%= f.label :address %>
+      <%= f.collection_select(:address_id, @user.addresses.valid, :id, :to_s_one_line,
+                              {:include_blank => 'Select An Address', :selected => @taxjar_customer.address_id}, {:class => 'select2 address'}) %>
+    </div>
+    <div class="field">
+      <%= f.label :tax_exemption_type %>
+      <%= f.collection_select(:tax_exemption_type, SuperGood::SolidusTaxjar::Customer::EXEMPTION_TYPES, :to_s, :to_s,
+                              {:include_blank => 'Select An Exemption Type', :selected => @taxjar_customer.tax_exemption_type}, {:class => 'select2 tax_exemption_type'}) %>
+    </div>
+    <%= f.fields_for :taxjar_exempt_regions do |ff| %>
+      <%= render partial: 'mgx/admin/taxjar_exempt_regions/form', locals: {f: ff} %>
+    <% end %>
+    <div class="form-content col-6"></div>
+  </div>
+  <div class="filter-actions actions col-12" data-hook="buttons">
+    <input type="submit" id="save-submit" name="button" value="Save Tax Exemption" >
+  </div>
+</fieldset>

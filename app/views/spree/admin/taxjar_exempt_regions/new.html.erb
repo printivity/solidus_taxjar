@@ -1,0 +1,14 @@
+<% admin_breadcrumb(link_to plural_resource_name(Spree::LegacyUser), spree.admin_users_path) %>
+<% admin_breadcrumb(link_to @user.email, spree.edit_admin_user_url(@user)) %>
+<% admin_breadcrumb("Tax Exemptions") %>
+
+<%= render 'spree/admin/users/sidebar' %>
+<%= render 'spree/admin/users/tabs', current: :tax_exemptions %>
+<%= render :partial => 'spree/admin/users/user_page_actions' %>
+
+<%= form_for @taxjar_exempt_region, as: :exempt_region, url: "/admin/users/#{@user.id}/taxjar_customers/taxjar_exempt_regions", method: :post do |f| %>
+  <%= render partial: 'form', locals: { f: f } %>
+  <div class="filter-actions actions col-12" data-hook="buttons">
+    <input type="submit" id="save-submit" name="button" value="Save State Exemption" >
+  </div>
+<% end %>

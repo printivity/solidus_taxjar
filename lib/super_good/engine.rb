@@ -8,6 +8,7 @@ module SuperGoodSolidusTaxjar
     if Spree.solidus_gem_version < Gem::Version.new('2.11.0')
       require root.join('app/subscribers/super_good/solidus_taxjar/spree/reporting_subscriber')
       SuperGood::SolidusTaxjar::Spree::ReportingSubscriber.subscribe!
+      SuperGood::SolidusTaxjar::Spree::TaxExemptionsSubscriber.subscribe!
     end
 
     include SolidusSupport::EngineExtensions

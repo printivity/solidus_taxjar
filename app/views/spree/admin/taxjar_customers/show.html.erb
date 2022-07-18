@@ -38,7 +38,7 @@
           <tr data-hook="admin_orders_index_rows">
             <td><%= exempt_region.created_at.strftime("%b %d %Y %l:%M%p") %></td>
             <td><%= exempt_region.state.name %></td>
-            <td><a href = "<%= url_for(exempt_region.tax_exemption_document) %>"><%= exempt_region.tax_exemption_document.filename %></a></td>
+            <td><a href = "<%= main_app.url_for(exempt_region.tax_exemption_document) %>"><%= exempt_region.tax_exemption_document.filename %></a></td>
             <td>
               <span class="pill pill-<%= exempt_region.approved.nil? ? 'pending' : exempt_region.approved ? 'active' : 'inactive' %>">
                 <%= exempt_region.approved.nil? ? "Pending Approval" : exempt_region.approved ? "Approved" : "Rejected" %>

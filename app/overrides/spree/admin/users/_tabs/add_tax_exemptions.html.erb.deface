@@ -1,0 +1,7 @@
+<!-- insert_bottom 'ul' -->
+
+<% if can?(:manage, SuperGood::SolidusTaxjar::Customer) %>
+  <li<%== ' class="active"' if current == :tax_exemptions %>>
+    <%= link_to 'tax exemptions', "/admin/users/#{@user.id}/tax_exemptions" %>
+  </li>
+<% end %>

@@ -19,7 +19,7 @@
                               {:include_blank => 'Select An Exemption Type', :selected => @taxjar_customer.tax_exemption_type}, {:class => 'select2 tax_exemption_type'}) %>
     </div>
     <%= f.fields_for :taxjar_exempt_regions do |ff| %>
-      <%= render partial: 'mgx/admin/taxjar_exempt_regions/form', locals: {f: ff} %>
+      <%= render partial: 'spree/admin/taxjar_exempt_regions/form', locals: {f: ff} %>
     <% end %>
     <div class="form-content col-6"></div>
   </div>

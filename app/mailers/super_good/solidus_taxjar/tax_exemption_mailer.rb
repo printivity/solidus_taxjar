@@ -14,7 +14,7 @@ module SuperGood
       def approved_email(user, state)
         @user = user
         @state = state
-        @store = Spree::Store.default
+        @store = ::Spree::Store.default
 
         mail(to: @user.email,
           subject: "Your tax exemption request for #{@state.abbr} has been approved",
@@ -24,7 +24,7 @@ module SuperGood
       def disapproved_email(user, state)
         @user = user
         @state = state
-        @store = Spree::Store.default
+        @store = ::Spree::Store.default
 
         mail(to: @user.email,
           subject: "Your tax exemption request for #{@state.abbr} has not been approved",

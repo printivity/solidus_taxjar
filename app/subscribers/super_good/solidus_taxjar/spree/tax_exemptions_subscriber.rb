@@ -39,19 +39,19 @@ module SuperGood
 
         def send_notification_email(event)
           user = event.payload[:user]
-          Mgx::ContactUsMailer.tax_exemption_request(user).deliver_now
+          SuperGood::SolidusTaxjar::TaxExemptionMailer.tax_exemption_request(user).deliver_now
         end
 
         def send_approved_email(event)
           user = event.payload[:user]
           state = event.payload[:state]
-          Mgx::TaxExemptionMailer.approved_email(user, state).deliver_now
+          SuperGood::SolidusTaxjar::TaxExemptionMailer.approved_email(user, state).deliver_now
         end
 
         def send_disapproved_email(event)
           user = event.payload[:user]
           state = event.payload[:state]
-          Mgx::TaxExemptionMailer.disapproved_email(user, state).deliver_now
+          SuperGood::SolidusTaxjar::TaxExemptionMailer.disapproved_email(user, state).deliver_now
         end
 
         private

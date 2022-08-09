@@ -13,8 +13,8 @@ module SuperGood
         event_action :create_refund, event_name: :reimbursement_reimbursed
 
         def report_transaction(event)
-          shipment.logger.debug "shipment shipped subscriber triggered"
           shipment = event.payload[:shipment]
+          shipment.logger.debug "shipment shipped subscriber triggered"
           order = shipment.order
 
           return unless SuperGood::SolidusTaxjar.configuration.preferred_reporting_enabled

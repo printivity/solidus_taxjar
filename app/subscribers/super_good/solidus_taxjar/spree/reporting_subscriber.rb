@@ -20,6 +20,7 @@ module SuperGood
           return unless SuperGood::SolidusTaxjar.configuration.preferred_reporting_enabled
 
           if reportable_order?(order)
+            shipment.logger.debug "taxjar add order transaction to job queue"
             SuperGood::SolidusTaxjar::ReportTransactionJob.perform_later(shipment)
           end
         end

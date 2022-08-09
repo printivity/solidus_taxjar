@@ -13,10 +13,13 @@ module SuperGood
         event_action :create_refund, event_name: :reimbursement_reimbursed
 
         def report_transaction(event)
+          shipment = event.payload[:shipment]
+          order = shipment.order
+
           return unless SuperGood::SolidusTaxjar.configuration.preferred_reporting_enabled
 
           if reportable_order?(order)
-            SuperGood::SolidusTaxjar::ReportTransactionJob.perform_later(event.payload[:shipment].order)
+            SuperGood::SolidusTaxjar::ReportTransactionJob.perform_later(shipment)
           end
         end
 

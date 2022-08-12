@@ -4,7 +4,7 @@ module SuperGood
 
       def tax_exemption_request(user)
         @user = user
-        mail(to: SuperGood::SolidusTaxjar.tax_exemption_mailer_address,
+        mail(to: SuperGood::SolidusTaxjar.tax_exemption_mailer_address || from_address(@store),
            subject: format('[TAX EXEMPTION REQUEST] Tax exemption request for ("%s")',
                            @user.email),
            from: from_address(@store),

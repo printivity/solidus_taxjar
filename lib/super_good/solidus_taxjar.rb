@@ -80,7 +80,7 @@ module SuperGood
 
     self.shipping_calculator = ->(order) { order.shipments.sum(&:total_before_tax) }
     self.shipping_tax_label_maker = ->(shipment, shipping_tax) { "Sales Tax" }
-    self.tax_exemption_mailer_address = from_address(::Spree::Store.default)
+    self.tax_exemption_mailer_address = nil
     self.taxable_address_check = ->(address) { true }
     self.taxable_order_check = ->(order) { true }
     self.test_mode = false

@@ -31,6 +31,7 @@ module SuperGood
       attr_accessor :reporting_ui_enabled
       attr_accessor :shipping_calculator
       attr_accessor :shipping_tax_label_maker
+      attr_accessor :tax_exemption_mailer_address
       attr_accessor :taxable_address_check
       attr_accessor :taxable_order_check
       attr_accessor :test_mode
@@ -79,6 +80,7 @@ module SuperGood
 
     self.shipping_calculator = ->(order) { order.shipments.sum(&:total_before_tax) }
     self.shipping_tax_label_maker = ->(shipment, shipping_tax) { "Sales Tax" }
+    self.tax_exemption_mailer_address = from_address(::Spree::Store.default)
     self.taxable_address_check = ->(address) { true }
     self.taxable_order_check = ->(order) { true }
     self.test_mode = false

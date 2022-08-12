@@ -30,6 +30,10 @@ module SuperGood
           subject: "Your tax exemption request for #{@state.abbr} has not been approved",
           from: from_address(@store))
       end
+
+      def from_address(store)
+        store.mail_from_address
+      end
     end
   end
 end

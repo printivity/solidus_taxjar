@@ -9,7 +9,7 @@ module SuperGood
                        inverse_of: :user
         end
 
-        ::Spree::UserClassHandle.new.prepend self
+        Spree::User.prepend self
       end
     end
   end

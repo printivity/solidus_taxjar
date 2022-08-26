@@ -19,7 +19,7 @@ module SuperGood
           return unless SuperGood::SolidusTaxjar.configuration.preferred_reporting_enabled
 
           if reportable_order?(order)
-            SuperGood::SolidusTaxjar::ReportTransactionJob.perform_later(shipment)
+            SuperGood::SolidusTaxjar::ReportTransactionJob.perform_later(order)
           end
         end
 

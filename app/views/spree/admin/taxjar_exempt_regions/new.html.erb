@@ -6,7 +6,7 @@
 <%= render 'spree/admin/users/tabs', current: :tax_exemptions %>
 <%= render :partial => 'spree/admin/users/user_page_actions' %>
 
-<%= form_for @taxjar_exempt_region, as: :exempt_region, url: "/admin/users/#{@user.id}/taxjar_customers/taxjar_exempt_regions", method: :post do |f| %>
+<%= form_for @taxjar_exempt_region, as: :exempt_region, url: "/admin/users/#{@user.id}/tax_exemptions/exempt_regions", method: :post do |f| %>
   <%= render partial: 'form', locals: { f: f } %>
   <div class="filter-actions actions col-12" data-hook="buttons">
     <input type="submit" id="save-submit" name="button" value="Save State Exemption" >

@@ -2,11 +2,7 @@ module SuperGood
   module SolidusTaxjar
     module Spree
       module ReportingSubscriber
-        include ::Spree::Event::Subscriber
-
-        if ::Spree::Event.method_defined?(:register)
-          ::Spree::Event.register("shipment_shipped")
-        end
+        include Omnes::Subscriber
 
         handle :shipment_shipped, with: :report_transaction
         handle :order_recalculated, with: :replace_transaction

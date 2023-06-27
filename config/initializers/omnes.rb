@@ -1,5 +1,6 @@
 Rails.application.config.to_prepare do
   %i[
+    shipment_shipped
     tax_exemption_created
     tax_exemption_updated
     tax_exemption_destroyed

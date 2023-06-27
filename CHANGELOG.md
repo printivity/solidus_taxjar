@@ -2,6 +2,7 @@
 
 ## master
 
+- [#193](https://github.com/SuperGoodSoft/solidus_taxjar/pull/193) Bump version requirement for `solidus_support` to ">= 0.9.0", and as a result drop support for Rails 5.2.
 - [#190](https://github.com/SuperGoodSoft/solidus_taxjar/pull/190) Add transaction sync batch show page
 - [#188](https://github.com/SuperGoodSoft/solidus_taxjar/pull/188) Show transaction sync batches in user interface
 - [#185](https://github.com/SuperGoodSoft/solidus_taxjar/pull/185) Backfill transactions in batches
@@ -39,6 +40,23 @@
 - [#169](https://github.com/SuperGoodSoft/solidus_taxjar/pull/169) Add basic backfill transaction functionality
 - [#181](https://github.com/SuperGoodSoft/solidus_taxjar/pull/181) Take all non-tax adjustment types into account when calculating a line item's discount
 - [#182](https://github.com/SuperGoodSoft/solidus_taxjar/pull/182) Automatically create default Tax Rate
+- [#176](https://github.com/SuperGoodSoft/solidus_taxjar/pull/176) Create refund transaction database models when reporting refunds.
+- [#192](https://github.com/SuperGoodSoft/solidus_taxjar/pull/192) Handle failures that occur in the middle of refunding a transaction.
+- [#194](https://github.com/SuperGoodSoft/solidus_taxjar/pull/194) Move the transaction backfill button to it's own unique page
+- [#198](https://github.com/SuperGoodSoft/solidus_taxjar/pull/198) Don't create zero dollar transactions when an order is fully refunded.
+- [#195](https://github.com/SuperGoodSoft/solidus_taxjar/pull/195) Run transaction backfills asynchronously
+- [#200](https://github.com/SuperGoodSoft/solidus_taxjar/pull/200) Expand solidus gem into dependencies to support Solidus 3.2+
+- [#183](https://github.com/SuperGoodSoft/solidus_taxjar/pull/183) Add ability to fetch tax codes from TaxJar and assign to tax categories in admin
+- [#200](https://github.com/SuperGoodSoft/solidus_taxjar/pull/200) Render error message when backfilling transactions fails
+- [#203](https://github.com/SuperGoodSoft/solidus_taxjar/pull/203) Remove outdated backfill button
+- [#202](https://github.com/SuperGoodSoft/solidus_taxjar/pull/202) Add TaxJar transaction sync status to order show page
+- [#204](https://github.com/SuperGoodSoft/solidus_taxjar/pull/204) Add page to render an orders TaxJar transactions
+- [#201](https://github.com/SuperGoodSoft/solidus_taxjar/pull/201) Allow transaction backfills to be filtered by date range
+- [#205](https://github.com/SuperGoodSoft/solidus_taxjar/pull/205) Use nexus regions for taxable address checks
+- [#218](https://github.com/SuperGoodSoft/solidus_taxjar/pull/218) Removed `order_recalculated` event backport
+- [#216](https://github.com/SuperGoodSoft/solidus_taxjar/pull/216) Add `deface` as a dependency.
+- [#217](https://github.com/SuperGoodSoft/solidus_taxjar/pull/217) Handle updates to orders that have not been reported
+- [#227](https://github.com/SuperGoodSoft/solidus_taxjar/pull/227) Fix reporting for orders with refunds
 
 ## Upgrading Instructions
 

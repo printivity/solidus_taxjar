@@ -19,15 +19,32 @@ RSpec.describe SuperGood::SolidusTaxjar::Configuration do
     it "has the default value" do
       expect(subject).to be_falsey
     end
+
+    context "reporting_enabled_at is set in the past" do
+      let(:taxjar_configuration) { create(:taxjar_configuration, preferred_reporting_enabled_at_integer: DateTime.now.to_i) }
+
+      it "is true" do
+        expect(subject).to be_truthy
+      end
+    end
+
+    context "reporting_enabled_at is set in the future" do
+      let(:taxjar_configuration) { create(:taxjar_configuration, preferred_reporting_enabled_at_integer: (DateTime.now + 1.day).to_i) }
+
+      it "is false" do
+        expect(subject).to be_falsy
+      end
+    end
   end
 
-  describe "#preferred_reporting_enabled=" do
-    subject { taxjar_configuration.update(preferred_reporting_enabled: true) }
+  describe "#preferred_reporting_enabled_at" do
+    subject { taxjar_configuration.preferred_reporting_enabled_at }
 
-    let(:taxjar_configuration) { create(:taxjar_configuration) }
+    let(:taxjar_configuration) { create(:taxjar_configuration, preferred_reporting_enabled_at_integer: datetime_integer) }
+    let(:datetime_integer) { 1675116247 }
 
-    it "sets the value" do
-      expect { subject }.to change { taxjar_configuration.reload.preferred_reporting_enabled }.from(false).to(true)
+    it "parses the integer datetime" do
+      expect(subject).to eq DateTime.parse("Mon, 30 Jan 2023 22:04:07 +0000")
     end
   end
 

@@ -24,12 +24,18 @@ RSpec.describe SuperGood::SolidusTaxjar::CalculatorHelper do
     end
 
     context "with a missing state in CA" do
-      let(:address) { build :address, country_iso_code: "CA", state: nil }
+      let(:address) { build :address, country_iso_code: "CA" }
+
+      before { address.state = nil }
+
       it { is_expected.to eq(true) }
     end
 
     context "with a missing state in US" do
-      let(:address) { build :address, country_iso_code: "US", state: nil }
+      let(:address) { build :address, country_iso_code: "US" }
+
+      before { address.state = nil }
+
       it { is_expected.to eq(true) }
     end
 
@@ -55,6 +61,71 @@ RSpec.describe SuperGood::SolidusTaxjar::CalculatorHelper do
     context "when the address' country is neither Canada nor the USA" do
       let(:country) { Spree::Country.new(iso: "FR") }
       it { is_expected.to eq(false) }
+    end
+  end
+
+  describe "#taxable_address?" do
+    subject { TestProxy.taxable_address?(address) }
+
+    let(:configuration_class) { double }
+
+    before do
+      allow(SuperGood::SolidusTaxjar)
+        .to receive(:taxable_address_check)
+        .and_return(configuration_class)
+      allow(configuration_class).to receive(:call)
+        .and_return(taxable_address)
+    end
+
+    context "when taxable address check returns false" do
+      let(:taxable_address) { false }
+      let(:address) do
+        create :address, name: "Canada", country_iso_code: "CA"
+      end
+
+      it { is_expected.to be_falsey }
+    end
+
+    context "when taxable address check returns true" do
+      let(:taxable_address) { true }
+
+      context "with non-US address" do
+        let(:address) do
+          create :address, name: "Canada", country_iso_code: "CA"
+        end
+
+        it { is_expected.to be_truthy }
+      end
+
+      context "with US address", :vcr do
+        let(:usa) { create :country, iso: "US", name: "United States" }
+
+        # This test expects a TaxJar account to have nexus in California.
+        #
+        context "when the address is within a nexus region" do
+          let(:address) {
+            create :address,
+              state: create(:state, abbr: "CA", country: usa, name: "Cali!"),
+              country: usa,
+              zipcode: "94704"
+          }
+
+          it { is_expected.to eq true }
+        end
+
+        # This test expects a TaxJar account to *not* have nexus in Alabama.
+        #
+        context "when the address is not within a nexus region" do
+          let(:address) {
+            create :address,
+              state: create(:state, abbr: "AL", country: usa, name: "Alabama"),
+              country: usa,
+              zipcode: "35006"
+          }
+
+          it { is_expected.to eq false }
+        end
+      end
     end
   end
 end

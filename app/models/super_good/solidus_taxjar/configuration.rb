@@ -6,7 +6,16 @@ module SuperGood
       include ::Spree::Preferences::Persistable
 
       self.table_name = 'solidus_taxjar_configuration'
-      preference :reporting_enabled, :boolean, default: false
+      preference :reporting_enabled_at_integer, :integer, default: nil
+
+      def preferred_reporting_enabled
+        preferred_reporting_enabled_at_integer.present? &&
+          DateTime.current.after?(preferred_reporting_enabled_at)
+      end
+
+      def preferred_reporting_enabled_at
+        Time.at(SuperGood::SolidusTaxjar.configuration.preferred_reporting_enabled_at_integer).to_datetime
+      end
 
       class << self
         def default

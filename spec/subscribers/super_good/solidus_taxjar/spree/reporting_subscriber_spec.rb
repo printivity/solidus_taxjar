@@ -14,25 +14,29 @@ RSpec.describe SuperGood::SolidusTaxjar::Spree::ReportingSubscriber do
   end
 
   before do
-    create(:taxjar_configuration, preferred_reporting_enabled: reporting_enabled)
+    create(:taxjar_configuration, preferred_reporting_enabled_at_integer: reporting_enabled_at.to_i)
   end
 
-  let(:order_factory) { :order_ready_to_ship }
+  let(:order_factory) { :shipped_order }
   let(:order) { with_events_disabled { create order_factory } }
 
   let(:reporting) { instance_spy ::SuperGood::SolidusTaxjar::Reporting }
-  let(:reporting_enabled) { true }
+  let(:reporting_enabled_at) { 1.hour.ago }
 
   describe "order_recalculated is fired" do
-    subject { ::Spree::Event.fire "order_recalculated", order: order }
+    subject do
+      SolidusSupport::LegacyEventCompat::Bus.publish(
+        :order_recalculated,
+        order: order
+      )
+    end
 
     context "when the order is completed" do
       context "when the order has not been shipped" do
         it "does nothing" do
-          expect(reporting)
-            .not_to receive(:refund_and_create_new_transaction)
-
           subject
+
+          assert_no_enqueued_jobs
         end
       end
 
@@ -44,10 +48,9 @@ RSpec.describe SuperGood::SolidusTaxjar::Spree::ReportingSubscriber do
         }
 
         it "does nothing" do
-          expect(reporting)
-            .not_to receive(:refund_and_create_new_transaction)
-
           subject
+
+          assert_no_enqueued_jobs
         end
       end
 
@@ -103,36 +106,43 @@ RSpec.describe SuperGood::SolidusTaxjar::Spree::ReportingSubscriber do
 
           context "when the TaxJar transaction is up-to-date" do
             it "does nothing" do
-              expect(reporting)
-                .not_to receive(:refund_and_create_new_transaction)
-
               subject
+
+              assert_no_enqueued_jobs
             end
 
-            context "when reporting is disabled" do
-              let(:reporting_enabled) { false }
+            context "when the order was completed before reporting was enabled" do
+              before do
+                order.update_column(:completed_at, 2.hours.ago)
+              end
 
               it "does nothing" do
-                expect(reporting)
-                  .not_to receive(:refund_and_create_new_transaction)
+                expect { subject }.not_to change(
+                  ActiveJob::Base.queue_adapter.enqueued_jobs,
+                  :count
+                )
+              end
 
-                subject
+              it "creates a sync log" do
+                expect { subject }.to change { order.taxjar_transaction_sync_logs.count }.from(0).to(1)
+                expect(order.taxjar_transaction_sync_logs.last.status).to eq "error"
+                expect(order.taxjar_transaction_sync_logs.last.error_message).to include "Order cannot be synced because it was completed before TaxJar reporting was enabled"
               end
             end
           end
 
           context "when the TaxJar transaction is not up-to-date" do
             before do
+              allow(dummy_client).to receive(:nexus_regions)
               allow(dummy_client).to receive(:tax_for_order)
-
               with_events_disabled {
-                # We want to ensure that the order is completed, paid, and that
-                # the `ReportingSubscriber#amount_changed?` method returns true.
-                order.line_items.first.update!(price: 33)
+                customer_return = create :customer_return_with_accepted_items, shipped_order: order
+                reimbursement = create :reimbursement, customer_return: customer_return, total: 10
+                create :refund, reimbursement: reimbursement, payment: order.payments.first, amount: 10
                 order.recalculate
-                order.payments.first.update!(amount: order.total)
               }
             end
+
 
             it "enqueue a job to refund and create a new transaction" do
               assert_enqueued_with(
@@ -143,27 +153,22 @@ RSpec.describe SuperGood::SolidusTaxjar::Spree::ReportingSubscriber do
               end
             end
 
-            it "creates a new TaxJar order transaction" do
-              allow(dummy_client)
-                .to receive(:create_order)
-                .and_return(new_dummy_response)
-
-              perform_enqueued_jobs do
-                expect { subject }
-                  .to change { order.taxjar_order_transactions.count }
-                  .from(1)
-                  .to(2)
+            context "when the order was completed before reporting was enabled" do
+              before do
+                order.update_column(:completed_at, 2.hours.ago)
               end
-            end
-
-            context "when reporting is disabled" do
-              let(:reporting_enabled) { false }
 
               it "does nothing" do
-                expect(reporting)
-                  .not_to receive(:refund_and_create_new_transaction)
+                expect { subject }.not_to change(
+                  ActiveJob::Base.queue_adapter.enqueued_jobs,
+                  :count
+                )
+              end
 
-                subject
+              it "creates a sync log" do
+                expect { subject }.to change { order.taxjar_transaction_sync_logs.count }.from(0).to(1)
+                expect(order.taxjar_transaction_sync_logs.last.status).to eq "error"
+                expect(order.taxjar_transaction_sync_logs.last.error_message).to include "Order cannot be synced because it was completed before TaxJar reporting was enabled"
               end
             end
           end
@@ -171,10 +176,9 @@ RSpec.describe SuperGood::SolidusTaxjar::Spree::ReportingSubscriber do
 
         context "when a TaxJar transaction does not exist on the order" do
           it "does nothing" do
-            expect(reporting)
-              .not_to receive(:refund_and_create_new_transaction)
-
             subject
+
+            assert_no_enqueued_jobs
           end
 
           it(
@@ -193,8 +197,9 @@ RSpec.describe SuperGood::SolidusTaxjar::Spree::ReportingSubscriber do
         let(:order_factory) { :completed_order_with_pending_payment }
 
         it "does nothing" do
-          expect(reporting).not_to receive(:show_or_create_transaction)
           subject
+
+          assert_no_enqueued_jobs
         end
       end
     end
@@ -203,14 +208,20 @@ RSpec.describe SuperGood::SolidusTaxjar::Spree::ReportingSubscriber do
       let(:order_factory) { :order_with_totals }
 
       it "does nothing" do
-        expect(reporting).not_to receive(:show_or_create_transaction)
         subject
+
+        assert_no_enqueued_jobs
       end
     end
   end
 
   describe "shipment_shipped is fired" do
-    subject { Spree::Event.fire "shipment_shipped", shipment: shipment }
+    subject do
+      SolidusSupport::LegacyEventCompat::Bus.publish(
+        :shipment_shipped,
+        shipment: shipment
+      )
+    end
 
     before do
       # Ignore other events that may be triggered by factories here.
@@ -219,7 +230,7 @@ RSpec.describe SuperGood::SolidusTaxjar::Spree::ReportingSubscriber do
 
     let(:shipment) { create(:shipment, state: 'ready', order: order) }
     let(:order) {
-      with_events_disabled { create :order_with_line_items }
+      with_events_disabled { create :completed_order_with_totals }
     }
     let(:reporting) { instance_spy(::SuperGood::SolidusTaxjar::Reporting) }
 
@@ -234,13 +245,39 @@ RSpec.describe SuperGood::SolidusTaxjar::Spree::ReportingSubscriber do
       end
     end
 
-    context "reporting is disabled" do
-      let(:reporting_enabled) { false }
+    context "when the order was completed before reporting was enabled" do
+      let(:reporting_enabled_at) { 1.hour.ago }
+      let(:exception_handler) { double }
+
+      before do
+        allow(exception_handler).to receive(:call)
+        order.update_column(:completed_at, 2.hours.ago)
+      end
+
+      around do |example|
+        original_handler = SuperGood::SolidusTaxjar.exception_handler
+        SuperGood::SolidusTaxjar.exception_handler = exception_handler
+        SuperGood::SolidusTaxjar.test_mode = true
+        example.call
+        SuperGood::SolidusTaxjar.test_mode = false
+        SuperGood::SolidusTaxjar.exception_handler = original_handler
+      end
 
       it "doesn't queue to report the transaction" do
         subject
 
         assert_no_enqueued_jobs
+      end
+
+      it "creates a sync log" do
+        expect { subject }.to change { order.taxjar_transaction_sync_logs.count }.from(0).to(1)
+        expect(order.taxjar_transaction_sync_logs.last.status).to eq "error"
+        expect(order.taxjar_transaction_sync_logs.last.error_message).to include "Order cannot be synced because it was completed before TaxJar reporting was enabled"
+      end
+
+      it "calls the exception handler" do
+        subject
+        expect(exception_handler).to have_received(:call).with(RuntimeError.new("Order cannot be synced because it was completed before TaxJar reporting was enabled"))
       end
     end
   end

@@ -1,11 +1,24 @@
 source "https://rubygems.org"
 
-git_source(:github) {|repo_name| "https://github.com/#{repo_name}" }
+git_source(:github) { |repo_name| "https://github.com/#{repo_name}" }
 
 branch = ENV.fetch("SOLIDUS_BRANCH", "v3.1")
+git "https://github.com/solidusio/solidus.git", branch: branch do
+  gem "solidus_core"
+  gem "solidus_backend"
+  gem "solidus_api"
+  gem "solidus_sample"
+end
 
-gem "solidus", github: "solidusio/solidus", branch: branch
+if (branch == 'main') || (branch >= 'v4.0')
+  gem "solidus_frontend", github: "solidusio/solidus_frontend", branch: 'main'
+elsif (branch >= 'v3.2') && (branch < 'v4.0')
+  gem "solidus_frontend", github: "solidusio/solidus_frontend", branch: branch
+else
+  gem "solidus_frontend", github: "solidusio/solidus", branch: branch
+end
 
+gem "rails"
 # Provides basic authentication functionality for testing parts of your engine
 gem "solidus_auth_devise"
 

@@ -8,6 +8,11 @@ module Spree
       def show
         @batch = SuperGood::SolidusTaxjar::TransactionSyncBatch.find(params[:id])
       end
+
+      def create
+        batch = ::SuperGood::SolidusTaxjar::BackfillTransactions.new.call(start_date: params[:start_date], end_date: params[:end_date])
+        redirect_to spree.admin_transaction_sync_batch_path(batch)
+      end
     end
   end
 end

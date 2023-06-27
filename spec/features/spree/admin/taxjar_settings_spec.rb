@@ -5,6 +5,7 @@ RSpec.feature 'Admin TaxJar Settings', js: true, vcr: true do
 
   background do
     create :store, default: true
+    create :tax_category, name: "Bibles", tax_code: "123"
   end
 
   describe "Taxjar settings tab" do
@@ -13,7 +14,6 @@ RSpec.feature 'Admin TaxJar Settings', js: true, vcr: true do
     before do
       allow(ENV).to receive(:[]).and_call_original
       allow(ENV).to receive(:[]).with("TAXJAR_API_KEY").and_return(api_token)
-      allow(SuperGood::SolidusTaxjar).to receive(:reporting_ui_enabled).and_return(true)
     end
 
     scenario "the user navigates to the TaxJar Settings" do
@@ -28,22 +28,6 @@ RSpec.feature 'Admin TaxJar Settings', js: true, vcr: true do
         expect(page).to have_content("TaxJar Settings")
       end
       expect(page).to have_content("Transaction Sync")
-    end
-
-    context "order is shipped" do
-      let(:order) { create :shipped_order }
-
-      before do
-        create(:tax_rate, name: "Sales Tax")
-        # The order must be created **after** the TaxRate to have the correct totals
-        order
-      end
-
-      scenario "the user backfills their transactions" do
-        visit "/admin/taxjar_settings/edit"
-        click_on "Backfill Transactions"
-        expect(page).to have_content(order.number)
-      end
     end
 
     context "Taxjar reporting is enabled" do
@@ -68,10 +52,20 @@ RSpec.feature 'Admin TaxJar Settings', js: true, vcr: true do
         expect(page).to have_content "Transaction Sync"
         expect(page).to have_content("Nexus Regions")
         expect(page).to have_link("Go to TaxJar to configure states", href: "https://app.taxjar.com/account#states")
-        expect(page).not_to have_content("British Columbia")
+
+        # We press the button to see the page refresh successfully.
         click_on "Sync Nexus Regions"
         expect(page).to have_content("Updated with new Nexus Regions")
-        expect(page).to have_content("British Columbia")
+
+        within "[data-hook='admin_taxjar_tax_categories_sync']" do
+          expect(page).to have_content("123")
+        end
+        select2_no_label("Bibles (81121)", from: "Select New Tax Code")
+        click_on "Update Tax Category"
+        within "[data-hook='admin_taxjar_tax_categories_sync']" do
+          expect(page).to_not have_content("123")
+          expect(page).to have_content("Bibles (81121)")
+        end
       end
     end
 

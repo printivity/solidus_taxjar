@@ -1,0 +1,4 @@
+<%= render partial: 'spree/admin/shared/order_tabs', locals: { current: 'TaxJar Sync History' } %>
+<% admin_breadcrumb("TaxJar Sync History") %>
+
+<%= render 'spree/admin/shared/transaction_sync_log_table', transaction_sync_logs: @order.taxjar_transaction_sync_logs %>

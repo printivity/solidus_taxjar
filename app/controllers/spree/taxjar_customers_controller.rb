@@ -1,5 +1,5 @@
 module Spree
-  class TaxjarCustomersController < APIController
+  class TaxjarCustomersController < ApiController
     before_action :load_taxjar_customer, except: %i[create]
 
     def show

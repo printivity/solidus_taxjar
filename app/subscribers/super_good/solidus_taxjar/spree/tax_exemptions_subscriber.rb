@@ -1,20 +1,19 @@
 # frozen_string_literal: true
 
-require "spree/event/subscriber"
 module SuperGood
   module SolidusTaxjar
     module Spree
       module TaxExemptionsSubscriber
         QUEUE_NAME = "taxjar"
 
-        include ::Spree::Event::Subscriber
+        include Omnes::Subscriber
 
-        event_action :create_customer, event_name: :tax_exemption_created
-        event_action :update_customer, event_name: :tax_exemption_updated
-        event_action :delete_customer, event_name: :tax_exemption_destroyed
-        event_action :send_notification_email, event_name: :tax_exemption_customer_request
-        event_action :send_approved_email, event_name: :tax_exemption_approved
-        event_action :send_disapproved_email, event_name: :tax_exemption_disapproved
+        handle :tax_exemption_created, with: :create_customer
+        handle :tax_exemption_updated, with: :update_customer
+        handle :tax_exemption_destroyed, with: :delete_customer
+        handle :tax_exemption_customer_request, with: :send_notification_email
+        handle :tax_exemption_approved, with: :send_approved_email
+        handle :tax_exemption_disapproved, with: :send_disapproved_email
 
         def create_customer(event)
           user = event.payload[:user]

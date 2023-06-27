@@ -8,9 +8,9 @@ module SuperGood
           ::Spree::Event.register("shipment_shipped")
         end
 
-        event_action :report_transaction, event_name: :shipment_shipped
-        event_action :replace_transaction, event_name: :order_recalculated
-        event_action :create_refund, event_name: :reimbursement_reimbursed
+        handle :shipment_shipped, with: :report_transaction
+        handle :order_recalculated, with: :replace_transaction
+        handle :reimbursement_reimbursed, with: :create_refund
 
         def report_transaction(event)
           shipment = event.payload[:shipment]

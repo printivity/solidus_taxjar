@@ -3,7 +3,7 @@
 module SuperGood
   module SolidusTaxjar
     module Spree
-      module TaxExemptionsSubscriber
+      class TaxExemptionsSubscriber
         QUEUE_NAME = "taxjar"
 
         include Omnes::Subscriber

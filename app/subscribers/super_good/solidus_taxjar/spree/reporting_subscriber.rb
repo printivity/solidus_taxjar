@@ -1,7 +1,7 @@
 module SuperGood
   module SolidusTaxjar
     module Spree
-      module ReportingSubscriber
+      class ReportingSubscriber
         include Omnes::Subscriber
 
         handle :shipment_shipped, with: :report_transaction

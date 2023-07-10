@@ -15,8 +15,8 @@ module Spree
 
       if @taxjar_customer.save
         flash[:success] = "Tax exemption has been saved"
-        ::Spree::Event.fire "tax_exemption_created", user: spree_current_user
-        ::Spree::Event.fire "tax_exemption_customer_request", user: spree_current_user
+        Spree::Bus.publish :tax_exemption_created, user: spree_current_user
+        Spree::Bus.publish :tax_exemption_customer_request, user: spree_current_user
         render_ok_with_csrf("api/v1/taxjar_customers/show", taxjar_customer: @taxjar_customer)
       else
         flash[:error] = "Tax exemption failed to save"
@@ -29,8 +29,8 @@ module Spree
 
       if @taxjar_customer.update(object_params)
         flash[:success] = "tax exemption has been updated"
-        ::Spree::Event.fire "tax_exemption_updated", user: spree_current_user
-        ::Spree::Event.fire "tax_exemption_customer_request", user: spree_current_user
+        Spree::Bus.publish :tax_exemption_updated, user: spree_current_user
+        Spree::Bus.publish :tax_exemption_customer_request, user: spree_current_user
         render_ok_with_csrf("api/v1/taxjar_customers/show", taxjar_customer: @taxjar_customer)
       else
         flash[:error] = "Tax exemption failed to update"
@@ -41,7 +41,7 @@ module Spree
     def destroy
       if @taxjar_customer.destroy
         flash[:success] = "tax exemption has been deleted"
-        ::Spree::Event.fire "tax_exemption_destroyed", user: spree_current_user
+        Spree::Bus.publish :tax_exemption_destroyed, user: spree_current_user
         render_ok_with_csrf("api/v1/taxjar_customers/show", taxjar_customer: @taxjar_customer)
       else
         flash[:error] = "tax exemption could not be deleted"

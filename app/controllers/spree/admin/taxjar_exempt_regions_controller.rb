@@ -13,7 +13,7 @@ module Spree
 
         if @taxjar_exempt_region.save
           flash[:success] = "State exemption has been saved"
-          ::Spree::Event.fire "tax_exemption_updated", user: @user
+          Spree::Bus.publish :tax_exemption_updated, user: @user
           redirect_to admin_user_tax_exemptions_path
         else
           flash[:error] = "State exemption failed to save"
@@ -28,9 +28,9 @@ module Spree
           flash[:success] = "State exemption has been deleted"
           if @taxjar_customer.taxjar_exempt_regions.blank?
             @taxjar_customer.destroy
-            ::Spree::Event.fire "tax_exemption_destroyed", user: @user
+            Spree::Bus.publish :tax_exemption_destroyed, user: @user
           else
-            ::Spree::Event.fire "tax_exemption_updated", user: @user
+            Spree::Bus.publish :tax_exemption_updated, user: @user
           end
         else
           flash[:error] = "State exemption could not be deleted"
@@ -42,8 +42,8 @@ module Spree
         exempt_region = @taxjar_customer.taxjar_exempt_regions.find(params[:id])
         if exempt_region.update(approved: true)
           flash[:success] = "State exemption approved"
-          ::Spree::Event.fire "tax_exemption_updated", user: @user
-          ::Spree::Event.fire "tax_exemption_approved", user: @user, state: exempt_region.state
+          Spree::Bus.publish :tax_exemption_updated, user: @user
+          Spree::Bus.publish :tax_exemption_approved, user: @user, state: exempt_region.state
         else
           flash[:error] = "State exemption could not be approved"
         end
@@ -54,8 +54,8 @@ module Spree
         exempt_region = @taxjar_customer.taxjar_exempt_regions.find(params[:id])
         if exempt_region.update(approved: false)
           flash[:success] = "State exemption disapproved"
-          ::Spree::Event.fire "tax_exemption_updated", user: @user
-          ::Spree::Event.fire "tax_exemption_disapproved", user: @user, state: exempt_region.state
+          Spree::Bus.publish :tax_exemption_updated, user: @user
+          Spree::Bus.publish :tax_exemption_disapproved, user: @user, state: exempt_region.state
         else
           flash[:error] = "State exemption could not be disapproved"
         end

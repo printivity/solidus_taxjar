@@ -18,7 +18,7 @@ module Spree
 
         if @taxjar_customer.save
           flash[:success] = "your user tax exemption has been saved"
-          ::Spree::Event.fire "tax_exemption_created", user: @user
+          Spree::Bus.publish :tax_exemption_created, user: @user
           redirect_to admin_user_tax_exemptions_path
         else
           flash[:error] = "your user tax exemption failed to save"
@@ -29,7 +29,7 @@ module Spree
       def destroy
         if @taxjar_customer.destroy
           flash[:success] = "Tax exemption has been deleted"
-          ::Spree::Event.fire "tax_exemption_destroyed", user: @user
+          Spree::Bus.publish :tax_exemption_destroyed, user: @user
           redirect_to admin_user_tax_exemptions_path
         else
           flash[:error] = "Tax exemption could not be deleted"

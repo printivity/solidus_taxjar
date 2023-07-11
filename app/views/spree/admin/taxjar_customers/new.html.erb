@@ -1,0 +1,24 @@
+<% admin_breadcrumb(link_to plural_resource_name(Spree::LegacyUser), spree.admin_users_path) %>
+<% admin_breadcrumb(link_to @user.email, spree.edit_admin_user_url(@user)) %>
+<% admin_breadcrumb("Tax Exemptions") %>
+
+
+<%= render 'spree/admin/users/sidebar' %>
+<%= render 'spree/admin/users/tabs', current: :tax_exemptions %>
+<%= render :partial => 'spree/admin/users/user_page_actions' %>
+
+<% content_for :title do %>
+  New User Tax Exemption - Accounts - yVantage
+<% end %>
+
+<div id="content">
+  <div class="cart-holder account-orders">
+    <div class="heading">
+      <h1>Enter a New Tax Exemption</h1>
+    </div>
+    <br/>
+    <%= form_for @taxjar_customer, :url => admin_user_tax_exemptions_path do |f| %>
+      <%= render 'spree/admin/taxjar_customers/form', :f => f %>
+    <% end %>
+  </div><!-- /cart-holder end -->
+</div><!-- /content end -->

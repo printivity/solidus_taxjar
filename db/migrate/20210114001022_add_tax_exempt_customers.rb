@@ -10,7 +10,7 @@ class AddTaxExemptCustomers < ActiveRecord::Migration[5.1]
     create_table :super_good_solidus_taxjar_exempt_regions do |t|
       t.references :taxjar_customer, index: { name: 'index_taxjar_exempt_regions_customer_id' }, null: false
       t.references :state, null: false
-      t.boolean :approved, null: false, default: false
+      t.boolean :approved
       t.timestamps
     end
 

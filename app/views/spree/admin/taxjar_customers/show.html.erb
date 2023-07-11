@@ -1,0 +1,90 @@
+<% admin_breadcrumb(link_to plural_resource_name(Spree::LegacyUser), spree.admin_users_path) %>
+<% admin_breadcrumb(link_to @user.email, spree.edit_admin_user_url(@user)) %>
+<% admin_breadcrumb("Tax Exemptions") %>
+
+
+<%= render 'spree/admin/users/sidebar' %>
+<%= render 'spree/admin/users/tabs', current: :tax_exemptions %>
+<%= render :partial => 'spree/admin/users/user_page_actions' %>
+
+<% if @taxjar_customer %>
+  <div>
+    <p>Address : <%= @taxjar_customer.address ? @taxjar_customer.address.to_s_one_line : "No address found." %></p>
+    <p>Tax exemption type : <%= @taxjar_customer.tax_exemption_type.humanize %></p>
+    <% if can? :delete, SuperGood::SolidusTaxjar::Customer %>
+      <%= button_to "Delete Tax Exemption", admin_user_tax_exemptions_path, :method=>:delete %>
+    <% end %>
+    <fieldset class="no-border-bottom"><legend>State Exemptions:</legend></fieldset>
+    <% if @taxjar_customer.taxjar_exempt_regions.any? %>
+      <table class="index responsive" id="listing_tax_state_exemptions" data-hook>
+        <colgroup>
+          <col style="width: 20%;">
+          <col style="width: 10%;">
+          <col style="width: 55%;">
+          <col style="width: 10%;">
+          <col style="width: 5%;">
+        </colgroup>
+        <thead>
+        <tr data-hook="admin_orders_index_headers">
+          <th>Created At</th>
+          <th>State exemption</th>
+          <th>Tax Exemption Document</th>
+          <th>Approved</th>
+          <th class="actions"></th>
+        </tr>
+        </thead>
+        <tbody>
+        <% @taxjar_customer.taxjar_exempt_regions.each do |exempt_region| %>
+          <tr data-hook="admin_orders_index_rows">
+            <td><%= exempt_region.created_at.strftime("%b %d %Y %l:%M%p") %></td>
+            <td><%= exempt_region.state.name %></td>
+            <td><a href = "<%= main_app.url_for(exempt_region.tax_exemption_document) %>"><%= exempt_region.tax_exemption_document.filename %></a></td>
+            <td>
+              <span class="pill pill-<%= exempt_region.approved.nil? ? 'pending' : exempt_region.approved ? 'active' : 'inactive' %>">
+                <%= exempt_region.approved.nil? ? "Pending Approval" : exempt_region.approved ? "Approved" : "Rejected" %>
+              </span>
+            </td>
+            <td class="actions">
+              <% if exempt_region.approved.nil? %>
+                <%= link_to '', disapprove_admin_user_tax_exemptions_exempt_region_path(@user, exempt_region),
+                            class: 'delete-state-exemption fa fa-thumbs-down no-text with-tip',
+                            data: { action: 'destroy'}, title: "Disapprove", method: :get %>
+                <%= link_to '', approve_admin_user_tax_exemptions_exempt_region_path(@user, exempt_region),
+                            class: 'delete-state-exemption fa fa-thumbs-up no-text with-tip',
+                            data: { action: 'destroy'}, title: "Approve", method: :get %>
+              <% elsif exempt_region.approved%>
+                <%= link_to '', admin_user_tax_exemptions_exempt_region_path(@user, exempt_region),
+                            class: 'delete-state-exemption fa fa-trash no-text with-tip',
+                            data: { action: 'destroy'}, title: "Delete State Exemption", method: :delete %>
+                <%= link_to '', disapprove_admin_user_tax_exemptions_exempt_region_path(@user, exempt_region),
+                            class: 'delete-state-exemption fa fa-thumbs-down no-text with-tip',
+                            data: { action: 'destroy'}, title: "Disapprove", method: :get %>
+              <% else %>
+                <%= link_to '', admin_user_tax_exemptions_exempt_region_path(@user, exempt_region),
+                            class: 'delete-state-exemption fa fa-trash no-text with-tip',
+                            data: { action: 'destroy'}, title: "Delete State Exemption", method: :delete %>
+                <%= link_to '', approve_admin_user_tax_exemptions_exempt_region_path(@user, exempt_region),
+                            class: 'delete-state-exemption fa fa-thumbs-up no-text with-tip',
+                            data: { action: 'destroy'}, title: "Approve", method: :get %>
+              <% end %>
+            </td>
+          </tr>
+        <% end %>
+        </tbody>
+      </table>
+    <% else %>
+      <div class="alpha twelve columns no-objects-found">
+        <%= I18n.t("No State Regions Found. ") %>,
+        <%= link_to I18n.t(:add_one), new_admin_user_tax_exemptions_exempt_region_path(@user) %>!
+      </div>
+    <% end %>
+    <% if can? :create, SuperGood::SolidusTaxjar::ExemptRegion %>
+      <%= button_to "Create State Exemption", new_admin_user_tax_exemptions_exempt_region_path(@user), method: :get %>
+    <% end %>
+  </div>
+<% else %>
+  No Tax Exemptions Found.
+  <% if can? :create, SuperGood::SolidusTaxjar::Customer %>
+    <%= link_to "Create One", new_admin_user_tax_exemptions_path %>
+  <% end %>
+<% end %>

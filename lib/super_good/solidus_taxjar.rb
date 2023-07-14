@@ -77,9 +77,6 @@ module SuperGood
     self.logging_enabled = false
 
     self.reportable_order_check = ->(order) { true }
-    # The reporting setting in the admin UI is disabled for now till the reporting
-    # feature is fully implemented.
-    self.reporting_ui_enabled = false
 
     self.shipping_calculator = ->(order) { order.shipments.sum(&:total_before_tax) }
     self.shipping_tax_label_maker = ->(shipment, shipping_tax) { "Sales Tax" }

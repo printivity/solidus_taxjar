@@ -7,7 +7,7 @@ module SuperGood
 
       def perform(transaction_sync_batch)
         complete_orders = ::Spree::Order.complete.where(shipment_state: 'shipped').select do |o|
-          SuperGood::SolidusTaxjar.reportable_order_check(o)
+          SuperGood::SolidusTaxjar.reportable_order_check.call(o)
         end
         if transaction_sync_batch.start_date
           complete_orders = complete_orders.where("completed_at >= ?", transaction_sync_batch.start_date.beginning_of_day)

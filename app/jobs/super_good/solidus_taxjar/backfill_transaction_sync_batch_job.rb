@@ -6,7 +6,7 @@ module SuperGood
       queue_as { SuperGood::SolidusTaxjar.job_queue }
 
       def perform(transaction_sync_batch)
-        complete_orders = ::Spree::Order.complete.where(shipment_state: 'shipped')
+        complete_orders = ::Spree::Order.where(state: 'order_complete')
         if transaction_sync_batch.start_date
           complete_orders = complete_orders.where("completed_at >= ?", transaction_sync_batch.start_date.beginning_of_day)
         end

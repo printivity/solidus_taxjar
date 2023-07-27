@@ -1,0 +1,74 @@
+<%= render 'spree/admin/shared/taxes_tabs' %>
+
+<% content_for :page_title do %>
+  <%= "Orders That Need Taxes Filed" %>
+<% end %>
+
+<% if @orders.any? %>
+  <table class="index" id="listing_orders" data-hook>
+    <colgroup>
+      <col style="width: 10%;">
+      <col style="width: 10%;">
+      <col style="width: 10%;">
+      <col style="width: 15%;">
+      <col style="width: 15%;">
+      <% if Spree::Order.checkout_step_names.include?(:delivery) %>
+        <col style="width: 10%;">
+      <% end %>
+      <% if Spree::Order.checkout_step_names.include?(:delivery) %>
+        <col style="width: 15%;">
+      <% else %>
+        <col style="width: 25%;">
+      <% end %>
+      <col style="width: 10%;">
+      <col style="width: 20%;">
+      <col style="width: 10%;">
+    </colgroup>
+    <thead>
+    <tr data-hook="admin_orders_index_headers">
+      <th>Store</th>
+      <th>Completed At</th>
+      <th>Number</th>
+      <th>Payment State</th>
+      <th>Email</th>
+      <th class="align-right">Total</th>
+      <th>Reason Order Wasn't Filed</th>
+      <th data-hook="admin_orders_index_header_actions" class="actions"></th>
+    </tr>
+    </thead>
+    <tbody>
+    <% @orders.each do |order| %>
+      <tr data-hook="admin_orders_index_rows">
+        <td><%= order.store.name %></td>
+        <td><%= l order.completed_at.to_date %></td>
+        <td><%= link_to order.number, "/yvantage/orders/#{order.number}/edit" %></td>
+        <td>
+          <% if order.payment_state  %>
+            <span class="pill pill-<%= order.payment_state %>">
+              <%= t(order.payment_state.blank? ? "N/A" : order.payment_state, scope: 'spree.payment_states') %>
+            </span>
+          <% end %>
+        </td>
+        <td>
+          <% if order.user %>
+            <%= link_to order.email, edit_admin_user_path(order.user) %>
+          <% else %>
+            <%= mail_to order.email %>
+          <% end %>
+        </td>
+        <td class="align-right"><%= order.display_total.to_html %></td>
+        <td><%= @reasons[order.number] %></td>
+        <td class='actions align-center' data-hook="admin_orders_index_row_actions">
+          <%= link_to_edit_url "/yvantage/orders/#{order.number}/edit", title: "admin_edit_#{dom_id(order)}", no_text: true %>
+        </td>
+      </tr>
+    <% end %>
+    </tbody>
+  </table>
+<% else %>
+  <div class="no-objects-found">
+    <%= render 'spree/admin/shared/no_objects_found',
+               resource: Spree::Order,
+               new_resource_url: spree.new_admin_order_path %>
+  </div>
+<% end %>

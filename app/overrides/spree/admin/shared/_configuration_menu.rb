@@ -9,5 +9,7 @@ Deface::Override.new(
     <%= configurations_sidebar_menu_item "TaxJar Settings", edit_admin_taxjar_settings_path %>
 
     <%= configurations_sidebar_menu_item "TaxJar Backfill", admin_transaction_sync_batches_path %>
+
+    <%= configurations_sidebar_menu_item "Orders That Need Taxes Filed", need_taxes_filed_admin_orders_path %>
   HTML
 end

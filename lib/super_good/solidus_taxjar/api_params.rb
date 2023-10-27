@@ -88,14 +88,15 @@ module SuperGood
             )
         end
 
-        def validate_address_params(spree_address)
-          {
+        def validate_address_params(spree_address, include_street = true)
+          params = {
             country: spree_address.country&.iso,
             state: spree_address.state&.abbr || spree_address.state_name,
             zip: spree_address.zipcode,
             city: spree_address.city,
-            street: [spree_address.address1, spree_address.address2].compact.join(' ')
           }
+          params[:street] = [spree_address.address1, spree_address.address2].compact.join(' ') if include_street
+          params
         end
 
         def customer_params(customer)

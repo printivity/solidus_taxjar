@@ -83,8 +83,8 @@ module SuperGood
         taxjar_client.create_refund ApiParams.refund_params(reimbursement)
       end
 
-      def validate_spree_address(spree_address)
-        taxjar_client.validate_address ApiParams.validate_address_params(spree_address)
+      def validate_spree_address(spree_address, include_street = true)
+        taxjar_client.validate_address ApiParams.validate_address_params(spree_address, include_street)
       end
 
       def show_customer_for(user)

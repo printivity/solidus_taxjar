@@ -9,11 +9,13 @@ require File.expand_path("dummy/config/environment.rb", __dir__).tap { |file|
 }
 
 require "solidus_dev_support/rspec/feature_helper"
-require 'vcr'
+
+require "vcr"
+require "selenium-webdriver"
 
 chrome_options = Selenium::WebDriver::Chrome::Options.new.tap do |options|
   options.add_argument("--window-size=#{CAPYBARA_WINDOW_SIZE.join(',')}")
-  options.add_argument("--headless")
+  options.add_argument("--headless") unless ENV["HEADED"]
   options.add_argument("--disable-gpu")
 end
 
@@ -24,23 +26,13 @@ Capybara.register_driver :solidus_chrome_headless do |app|
   Capybara::Selenium::Driver.new(app, browser: :chrome, options_key => chrome_options)
 end
 
-# This was pulled from `solidus_dev_support` and the glob was updated to allow
-# for a deeper namespacing of our factories folder
-# `lib/solidus_dev_support/testing_support/factories.rb`.
-paths = ::SuperGoodSolidusTaxjar::Engine.root.glob('lib/**/testing_support/factories')
+SolidusDevSupport::TestingSupport::Factories.load_for(SuperGoodSolidusTaxjar::Engine)
 
-FactoryBot.definition_file_paths = [
-  Spree::TestingSupport::FactoryBot.definition_file_paths,
-  paths,
-].flatten
-
-FactoryBot.reload
-
-# Requires supporting ruby files with custom matchers and macros, etc,
-# in spec/support/ and its subdirectories.
-Dir[File.join(File.dirname(__FILE__), "support/**/*.rb")].each { |f| require f }
+require "support/solidus_events_helper"
+require "support/checkoutable_store_shared_context"
 
 RSpec.configure do |config|
+  config.include SolidusEventsHelper
   config.infer_spec_type_from_file_location!
   config.use_transactional_fixtures = false
 
@@ -57,12 +49,10 @@ VCR.configure do |config|
   config.ignore_localhost = true
   config.configure_rspec_metadata!
   config.hook_into :webmock
-  driver_urls = Webdrivers::Common.subclasses.map do |driver|
-    Addressable::URI.parse(driver.base_url).host
-  end
   config.ignore_hosts(
     "chromedriver.storage.googleapis.com",
-    *driver_urls
+    "googlechromelabs.github.io",
+    "edgedl.me.gvt1.com"
   )
   config.filter_sensitive_data('<BEARER_TOKEN>') { |interaction|
     auths = interaction.request.headers['Authorization'].first

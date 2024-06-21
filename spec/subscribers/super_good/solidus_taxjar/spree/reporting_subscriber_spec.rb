@@ -1,18 +1,10 @@
 require "spec_helper"
 
-RSpec.describe SuperGood::SolidusTaxjar::Spree::ReportingSubscriber do
-  # We only want to trigger the real event action behaviour as our spec
-  # `subject`s.
-  def with_events_disabled(&block)
-    allow(Spree::Event).to receive(:fire).and_return(nil)
-
-    object = yield block
-
-    allow(Spree::Event).to receive(:fire).and_call_original
-
-    object
-  end
-
+# These tests will excercise either the `ReportingSubscriber` or the
+# `LegacyReportingSubscriber` depending on the version of Solidus they are
+# run against. The loading of the correct subscriber is handled by the
+# initializer added by this extension's install generator.
+RSpec.describe "ReportingSubscriber" do
   before do
     create(:taxjar_configuration, preferred_reporting_enabled_at_integer: reporting_enabled_at.to_i)
   end
@@ -33,6 +25,10 @@ RSpec.describe SuperGood::SolidusTaxjar::Spree::ReportingSubscriber do
 
     context "when the order is completed" do
       context "when the order has not been shipped" do
+        let(:order) {
+          with_events_disabled { create :completed_order_with_totals }
+        }
+
         it "does nothing" do
           subject
 
@@ -41,11 +37,7 @@ RSpec.describe SuperGood::SolidusTaxjar::Spree::ReportingSubscriber do
       end
 
       context "when the order's payment state is 'credit_owed'" do
-        let(:order) {
-          with_events_disabled {
-            create(order_factory, payment_state: "credit_owed")
-          }
-        }
+        before { order.update(payment_state: "credit_owed") }
 
         it "does nothing" do
           subject
@@ -124,9 +116,11 @@ RSpec.describe SuperGood::SolidusTaxjar::Spree::ReportingSubscriber do
               end
 
               it "creates a sync log" do
-                expect { subject }.to change { order.taxjar_transaction_sync_logs.count }.from(0).to(1)
+                expect { subject }.to change { order.taxjar_transaction_sync_logs.count }
+                  .from(0).to(1)
                 expect(order.taxjar_transaction_sync_logs.last.status).to eq "error"
-                expect(order.taxjar_transaction_sync_logs.last.error_message).to include "Order cannot be synced because it was completed before TaxJar reporting was enabled"
+                expect(order.taxjar_transaction_sync_logs.last.error_message)
+                  .to include "Order cannot be synced because it was completed before TaxJar reporting was enabled"
               end
             end
           end
@@ -143,8 +137,7 @@ RSpec.describe SuperGood::SolidusTaxjar::Spree::ReportingSubscriber do
               }
             end
 
-
-            it "enqueue a job to refund and create a new transaction" do
+            it "enqueues a job to refund and create a new transaction" do
               assert_enqueued_with(
                 job: SuperGood::SolidusTaxjar::ReplaceTransactionJob,
                 args: [order]
@@ -175,20 +168,13 @@ RSpec.describe SuperGood::SolidusTaxjar::Spree::ReportingSubscriber do
         end
 
         context "when a TaxJar transaction does not exist on the order" do
-          it "does nothing" do
-            subject
-
-            assert_no_enqueued_jobs
-          end
-
-          it(
-            "creates a new transaction",
-            skip: "in the future, we would like to implement a 'create or update' flow"
-          ) do
-            expect { subject }
-              .to change { SuperGood::SolidusTax::OrderTransaction.count }
-              .from(0)
-              .to(1)
+          it "enqueues a job to report the transaction" do
+            assert_enqueued_with(
+              job: SuperGood::SolidusTaxjar::ReportTransactionJob,
+              args: [order]
+            ) do
+              subject
+            end
           end
         end
       end
@@ -215,22 +201,12 @@ RSpec.describe SuperGood::SolidusTaxjar::Spree::ReportingSubscriber do
     end
   end
 
-  describe "shipment_shipped is fired" do
-    subject do
-      SolidusSupport::LegacyEventCompat::Bus.publish(
-        :shipment_shipped,
-        shipment: shipment
-      )
-    end
+  describe "shipment is shipped" do
+    subject { shipment.ship! }
 
-    before do
-      # Ignore other events that may be triggered by factories here.
-      allow(Spree::Event).to receive(:fire).with("order_recalculated")
-    end
-
-    let(:shipment) { create(:shipment, state: 'ready', order: order) }
+    let(:shipment) { order.shipments.first }
     let(:order) {
-      with_events_disabled { create :completed_order_with_totals }
+      with_events_disabled { create :order_ready_to_ship }
     }
     let(:reporting) { instance_spy(::SuperGood::SolidusTaxjar::Reporting) }
 
@@ -242,6 +218,11 @@ RSpec.describe SuperGood::SolidusTaxjar::Spree::ReportingSubscriber do
         ) do
           subject
         end
+      end
+
+      it "does not enqueue the replace transaction job" do
+        expect { subject }
+          .to_not have_enqueued_job(SuperGood::SolidusTaxjar::ReplaceTransactionJob)
       end
     end
 
@@ -263,21 +244,34 @@ RSpec.describe SuperGood::SolidusTaxjar::Spree::ReportingSubscriber do
         SuperGood::SolidusTaxjar.exception_handler = original_handler
       end
 
-      it "doesn't queue to report the transaction" do
-        subject
+      it "doesn't queue job to report the transaction" do
+        expect { subject }
+          .to_not have_enqueued_job(SuperGood::SolidusTaxjar::ReportTransactionJob)
+      end
 
-        assert_no_enqueued_jobs
+      it "doesn't queue job to replace the transaction" do
+        expect { subject }
+          .to_not have_enqueued_job(SuperGood::SolidusTaxjar::ReplaceTransactionJob)
       end
 
       it "creates a sync log" do
         expect { subject }.to change { order.taxjar_transaction_sync_logs.count }.from(0).to(1)
         expect(order.taxjar_transaction_sync_logs.last.status).to eq "error"
-        expect(order.taxjar_transaction_sync_logs.last.error_message).to include "Order cannot be synced because it was completed before TaxJar reporting was enabled"
+        expect(order.taxjar_transaction_sync_logs.last.error_message)
+          .to include(
+            "Order cannot be synced because it was completed before " \
+            "TaxJar reporting was enabled"
+          )
       end
 
       it "calls the exception handler" do
         subject
-        expect(exception_handler).to have_received(:call).with(RuntimeError.new("Order cannot be synced because it was completed before TaxJar reporting was enabled"))
+        expect(exception_handler).to have_received(:call)
+          .with(
+            RuntimeError.new(
+              "Order cannot be synced because it was completed before TaxJar " \
+              "reporting was enabled")
+          )
       end
     end
   end

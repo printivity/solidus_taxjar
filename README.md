@@ -1,5 +1,5 @@
 # `SuperGood::SolidusTaxjar`
-
+[![Gem Version](https://badge.fury.io/rb/super_good-solidus_taxjar.svg)](https://badge.fury.io/rb/super_good-solidus_taxjar)
 [![CircleCI build status](https://circleci.com/gh/SuperGoodSoft/solidus_taxjar/tree/master.svg?style=shield)](https://circleci.com/gh/SuperGoodSoft/solidus_taxjar/tree/master)
 
 `SuperGood::SolidusTaxjar` is a [Solidus](https://github.com/solidusio/solidus)
@@ -50,7 +50,7 @@ about using the Solidus TaxJar extension after it has been installed.
 4. Finally, make sure that the `TAXJAR_API_KEY` environment variable is set to
    your TaxJar API key.
 
-### Warning: Installing on production
+### Warning: Installing on Production
 
 Before you install this extension in your production environment, **we strongly
 recommend that you install and configure a supported ActiveJob backend**.
@@ -68,20 +68,7 @@ particularly helpful.
 [active-job-basics]: https://edgeguides.rubyonrails.org/active_job_basics.html
 [active-job-execution]: https://edgeguides.rubyonrails.org/active_job_basics.html#job-execution
 
-## Project Status
-
-<!-- FIXME: Modify the following paragraph for the v1.0 release. -->
-
-This extension is under active development and not yet at a v1.0 release, but
-it's currently being used in production by multiple Solidus stores.
-
-Requirements for TaxJar integrations vary as some stores also need reporting,
-which isn't provided out of the box by this extension. This is because
-individual stores will be using different background job frameworks or runners
-(Sidekiq, delayed_job, ActiveJob, etc.) and a reliable integration will rely on
-one of these. Because this part of the integration is small, we've chosen to
-provide the transaction reporting functionality, but have skipped directly
-integrating it.
+## Developer Support
 
 If you're having trouble integrating this extension with your store and would
 like some assistance, please reach out to Jared via e-mail at [jared@super.gd](mailto:jared@super.gd)
@@ -104,8 +91,11 @@ that event to your applicaiton.
 This extension also supports:
 
 * syncing orders to TaxJar's reporting dashboard
-* syncing nexus regions as configured in the connected TaxJar account
+* syncing nexus regions as configured in the connected TaxJar account (including
+  automatic _and_ manual sync)
 * connecting your Solidus store's tax categories to TaxJar's tax categories (U.S. tax codes)
+
+**Note that reporting is turned off by default.**
 
 ### TaxCalculator
 
@@ -240,7 +230,13 @@ Developers can configure the following settings in an initializer:
 
   Default value: `false`
 
-### Exception handling
+### Taxable Orders
+
+Note that the configuration setting `taxable_order_check` can be customized if
+there is specific criteria that make some orders taxable and other orders not
+taxable. By default this extension considers all orders taxable.
+
+### Exception Handling
 
 You can configure your own exception handler in an initializer. using the
 `exception_handler` configuration point:
@@ -309,6 +305,15 @@ and `SOLIDUS_BRANCH` environment variables, respectively. See the
 
 The database vendor can also be changed from the default (`sqlite3`) by setting
 the `DB` environment variable.
+
+### Testing the Extension
+
+When testing your application's integration with this extension you may use its factories.
+You can load Solidus core factories along with this extension's factories using this statement:
+
+```ruby
+SolidusDevSupport::TestingSupport::Factories.load_for(SuperGoodSolidusTaxjar::Engine)
+```
 
 ## Releasing a New Version
 

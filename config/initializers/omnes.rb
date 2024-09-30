@@ -9,4 +9,5 @@ Rails.application.config.to_prepare do
     tax_exemption_customer_request
   ].each { |event_name| Spree::Bus.register(event_name) }
   SuperGood::SolidusTaxjar::Spree::TaxExemptionsSubscriber.new.subscribe_to(Spree::Bus)
+  SuperGood::SolidusTaxjar::Spree::ReportingSubscriber.new.subscribe_to(Spree::Bus)
 end

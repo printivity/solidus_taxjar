@@ -35,7 +35,9 @@ module SuperGood
         return SuperGood::SolidusTaxjar.configuration.preferred_reporting_enabled &&
           order.completed? &&
           order.shipped? &&
-          order.payment_state == "paid"
+          order.payment_state == "paid" &&
+          %w[Spree::Order Mgx::Order::Reorder Mgx::Order::HardCopyProof].include?(order.type) &&
+          Spree::TaxCategory.taxable?(order.line_items)
       end
 
       # @return [Boolean] true if the transaction has been previously reported

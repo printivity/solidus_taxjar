@@ -16,6 +16,7 @@ module SuperGood
         DELAY = 2
 
         handle :order_recalculated, with: :report_or_replace_transaction
+        handle :shipment_shipped, with: :report_or_replace_transaction
 
         def report_or_replace_transaction(event)
           order = event.payload[:order]

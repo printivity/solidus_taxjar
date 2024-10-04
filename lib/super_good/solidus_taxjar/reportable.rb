@@ -37,7 +37,7 @@ module SuperGood
           order.shipped? &&
           order.payment_state == "paid" &&
           %w[Spree::Order Mgx::Order::Reorder Mgx::Order::HardCopyProof].include?(order.type) &&
-          Spree::TaxCategory.taxable?(order.line_items)
+          ::Spree::TaxCategory.taxable?(order.line_items)
       end
 
       # @return [Boolean] true if the transaction has been previously reported

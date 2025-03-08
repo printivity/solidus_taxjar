@@ -40,7 +40,7 @@ module SuperGood
         def tax_amount(order)
           # Sum of line items + shipping, excluding tax
           line_items_total = order.line_items.sum do |line_item|
-            quantity = taxable_quantity(line_item)
+            quantity = line_item.quantity
             unit_price = SuperGood::SolidusTaxjar.line_item_unit_price_calculator.call(line_item)
             quantity * unit_price
           end
@@ -67,10 +67,8 @@ module SuperGood
               sales_tax: sales_tax(order)
             )
 
-          if order.user
-            customer_info = user_params(order.user)
-            params.merge!(customer_info)
-          end
+          customer_info = user_params(order&.bill_address)
+          params.merge!(customer_info)
 
           params
         end
@@ -123,21 +121,20 @@ module SuperGood
           params
         end
 
-        def user_params(user)
-          address = user.addresses.first
-
+        def user_params(address)
+          return {} if address.nil?
+          
           {
             customer_info: {
-              customer_id: user.id,
+              customer_id: address.user_id&.to_s,
               name: address.company.present? ? address.company : address.name,
               country: address.country.iso,
-              state: address.state.abbr,
+              state: address.state&.abbr || address.state_name,
               zip: address.zipcode,
               city: address.city,
               street: address.address1,
-              exempt_regions: user.taxjar_exempt_regions.approved.map do |exempt_region|
+              exempt_regions: address.user&.taxjar_exempt_regions&.approved&.map do |exempt_region|
                 state = exempt_region.state
-
                 {
                   state: state.abbr,
                   country: state.country.iso
@@ -223,7 +220,7 @@ module SuperGood
         def transaction_line_items_params(line_items)
           {
             line_items: line_items.filter_map { |line_item|
-              quantity = taxable_quantity line_item
+              quantity = line_item.quantity
               next unless quantity.positive?
 
               {

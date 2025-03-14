@@ -37,9 +37,24 @@ module SuperGood
           }.merge(order_address_params(address))
         end
 
+        def tax_amount(order)
+          # Sum of line items + shipping, excluding tax
+          line_items_total = order.line_items.sum do |line_item|
+            quantity = line_item.quantity
+            unit_price = SuperGood::SolidusTaxjar.line_item_unit_price_calculator.call(line_item)
+            quantity * unit_price
+          end
+          shipping_total = order.ship_total || 0
+
+          # Calculate total before tax
+          subtotal = line_items_total + shipping_total
+
+          # Ensure non-negative amount
+          [subtotal, 0].max
+        end
+
         def transaction_params(order, transaction_id = order.number)
-          {}
-            .merge(customer_id(order))
+          params = {}.merge(customer_id(order))
             .merge(order_address_params(order.tax_address))
             .merge(transaction_line_items_params(order.line_items))
             .merge(
@@ -47,10 +62,15 @@ module SuperGood
               transaction_date: order.completed_at.to_formatted_s(:iso8601),
               # We use `payment_total` to reflect the total liablity
               # transferred.
-              amount: [order.payments.completed.sum(&:amount) - refund_total_without_tax(order) - order.additional_tax_total, 0].max,
+              amount: tax_amount(order),
               shipping: shipping(order),
               sales_tax: sales_tax(order)
             )
+
+          customer_info = user_params(order&.bill_address)
+          params.merge!(customer_info)
+
+          params
         end
 
         def refund_transaction_params(spree_order, taxjar_order)
@@ -99,6 +119,29 @@ module SuperGood
           }
           params[:street] = [spree_address.address1, spree_address.address2].compact.join(' ') if include_street
           params
+        end
+
+        def user_params(address)
+          return {} if address.nil?
+          
+          {
+            customer_info: {
+              customer_id: address.user_id&.to_s,
+              name: address.company.present? ? address.company : address.name,
+              country: address.country.iso,
+              state: address.state&.abbr || address.state_name,
+              zip: address.zipcode,
+              city: address.city,
+              street: address.address1,
+              exempt_regions: address.user&.taxjar_exempt_regions&.approved&.map do |exempt_region|
+                state = exempt_region.state
+                {
+                  state: state.abbr,
+                  country: state.country.iso
+                }
+              end
+            }
+          }
         end
 
         def customer_params(customer)
@@ -177,7 +220,7 @@ module SuperGood
         def transaction_line_items_params(line_items)
           {
             line_items: line_items.filter_map { |line_item|
-              quantity = taxable_quantity line_item
+              quantity = line_item.quantity
               next unless quantity.positive?
 
               {

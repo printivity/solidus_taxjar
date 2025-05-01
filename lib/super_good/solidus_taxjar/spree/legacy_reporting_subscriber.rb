@@ -1,8 +1,9 @@
 module SuperGood
   module SolidusTaxjar
     module Spree
-      class ReportingSubscriber
-        include Omnes::Subscriber
+      module LegacyReportingSubscriber
+        include ::Spree::Event::Subscriber
+        include SolidusSupport::LegacyEventCompat::Subscriber
         include SuperGood::SolidusTaxjar::Reportable
 
         # FIXME:
@@ -15,8 +16,7 @@ module SuperGood
         #
         DELAY = 2
 
-        handle :order_recalculated, with: :report_or_replace_transaction
-        handle :shipment_shipped, with: :report_or_replace_transaction
+        event_action :report_or_replace_transaction, event_name: :order_recalculated
 
         def report_or_replace_transaction(event)
           order = event.payload[:order]

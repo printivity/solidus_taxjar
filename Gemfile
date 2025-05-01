@@ -1,5 +1,6 @@
-source "https://rubygems.org"
+# frozen_string_literal: true
 
+source "https://rubygems.org"
 git_source(:github) { |repo_name| "https://github.com/#{repo_name}" }
 
 branch = ENV.fetch("SOLIDUS_BRANCH", "v3.1")
@@ -35,6 +36,13 @@ group :development, :test do
   gem "pry"
   gem "pry-stack_explorer"
   gem "pry-byebug"
+
+  # FIXME:
+  # Once a new version of `solidus_dev_support` is released to RubyGems, we can
+  # use that.
+  gem "solidus_dev_support",
+    github: "solidusio/solidus_dev_support",
+    branch: "main"
 end
 
 gemspec

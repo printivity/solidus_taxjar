@@ -47,7 +47,7 @@ module SuperGood
           shipping_total = order.ship_total || 0
 
           # Calculate total before tax
-          subtotal = line_items_total + shipping_total
+          subtotal = line_items_total + shipping_total + order.promo_total
 
           # Ensure non-negative amount
           [subtotal, 0].max

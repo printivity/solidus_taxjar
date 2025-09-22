@@ -79,8 +79,8 @@ module SuperGood
 
     self.reportable_order_check = ->(order) { true }
 
-    self.shipping_calculator = ->(order) { order.shipments.sum(&:total_before_tax) }
-    self.shipping_tax_label_maker = ->(shipment, shipping_tax) { "Sales Tax" }
+    self.shipping_calculator = ->(shipments) { shipments.sum(&:cost) }
+    self.shipping_tax_label_maker = ->(taxjar_shipment, shipment) { "Sales Tax" }
     self.tax_exemption_mailer_from_address = "admin@example.com"
     self.tax_exemption_mailer_to_address = "admin@example.com"
     self.taxable_address_check = ->(address) { true }

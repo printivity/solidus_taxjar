@@ -21,8 +21,8 @@ module SuperGood
         taxjar_client.categories
       end
 
-      def tax_for(order)
-        taxjar_client.tax_for_order(ApiParams.order_params(order))
+      def tax_for(order, address, shipments)
+        taxjar_client.tax_for_order(ApiParams.order_params(order, address, shipments))
       end
 
       def tax_rate_for(address)

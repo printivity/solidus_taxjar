@@ -4,12 +4,12 @@ module SuperGood
       UNTAXABLE_INVENTORY_UNIT_STATES = ["returned", "canceled"]
 
       class << self
-        def order_params(order)
+        def order_params(order, address, shipments)
           {}
             .merge(customer_id(order))
-            .merge(order_address_params(order.tax_address))
-            .merge(line_items_params(order.line_items))
-            .merge(shipping: shipping(order))
+            .merge(order_address_params(address))
+            .merge(line_items_params(shipments.map(&:inventory_units).flatten.compact))
+            .merge(shipping: shipping(shipments))
             .merge(SuperGood::SolidusTaxjar.custom_order_params.call(order))
         end
 
@@ -192,20 +192,24 @@ module SuperGood
         # @param line_items [Spree::LineItem::ActiveRecord_Relation] All of the
         #   order's line items.
         # @return [Hash] A TaxJar API-friendly line item collection.
-        def line_items_params(line_items)
-          {
-            line_items: line_items.filter_map { |line_item|
-              next unless line_item.quantity.positive?
+        def line_items_params(_inventory_units)
+          grouped_inventory_units = _inventory_units.group_by(&:line_item)
 
-              {
-                id: line_item.id,
-                quantity: 1,
-                unit_price: line_item.total,
-                discount: discount(line_item),
-                product_tax_code: line_item.tax_category&.tax_code
-              }
+          line_items = grouped_inventory_units.filter_map { |line_item, inventory_units|
+            quantity = inventory_units.sum(&:quantity)
+
+            next unless quantity.positive?
+
+            {
+              id: line_item.id,
+              quantity:,
+              unit_price: line_item.total / line_item.quantity,
+              discount: discount(line_item) * (quantity / line_item.quantity.to_f),
+              product_tax_code: line_item.tax_category&.tax_code
             }
           }
+
+          { line_items: }
         end
 
         # @private
@@ -241,8 +245,8 @@ module SuperGood
           ::SuperGood::SolidusTaxjar.discount_calculator.new(line_item).discount
         end
 
-        def shipping(order)
-          SuperGood::SolidusTaxjar.shipping_calculator.call(order)
+        def shipping(shipments)
+          SuperGood::SolidusTaxjar.shipping_calculator.call(shipments)
         end
 
         def sales_tax(order)

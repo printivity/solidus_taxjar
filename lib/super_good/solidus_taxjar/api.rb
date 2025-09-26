@@ -33,7 +33,7 @@ module SuperGood
         taxjar_client.rates_for_location(*ApiParams.address_params(address))
       end
 
-      def create_transaction_for(order)
+      def create_transaction_for(order, address, shipments)
         latest_transaction_id =
           OrderTransaction.latest_for(order)&.transaction_id
 
@@ -43,12 +43,12 @@ module SuperGood
         )
 
         taxjar_client.create_order(
-          ApiParams.transaction_params(order, transaction_id)
+          ApiParams.transaction_params(order, address, shipments, transaction_id)
         )
       end
 
-      def update_transaction_for(order)
-        taxjar_client.update_order ApiParams.transaction_params(order)
+      def update_transaction_for(order, address, shipments)
+        taxjar_client.update_order ApiParams.transaction_params(order, address, shipments)
       end
 
       def delete_transaction_for(order)

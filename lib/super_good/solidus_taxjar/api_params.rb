@@ -13,11 +13,6 @@ module SuperGood
             .merge(SuperGood::SolidusTaxjar.custom_order_params.call(order))
         end
 
-        #ADNAN: temp fix until we have a solution
-        def reorder_params(order)
-          order_params(order)
-        end
-
         def address_params(address)
           [
             address.zipcode,
@@ -37,19 +32,23 @@ module SuperGood
           }.merge(order_address_params(address))
         end
 
-        def transaction_params(order, transaction_id = order.number)
+        def transaction_params(order, address, shipments, transaction_id = order.number)
+          {}.merge(customer_id(order))
+             .merge(order_address_params(address))
+             .merge(line_items_params(shipments.map(&:inventory_units).flatten.compact))
+             .merge(shipping: shipping(shipments))
+             .merge(SuperGood::SolidusTaxjar.custom_order_params.call(order))
+
           {}
             .merge(customer_id(order))
-            .merge(order_address_params(order.tax_address))
-            .merge(transaction_line_items_params(order.line_items))
+            .merge(order_address_params(address))
+            .merge(transaction_line_items_params(address, shipments.map(&:inventory_units).flatten.compact))
             .merge(
               transaction_id: transaction_id,
               transaction_date: order.completed_at.to_formatted_s(:iso8601),
-              # We use `payment_total` to reflect the total liablity
-              # transferred.
-              amount: [order.payments.completed.sum(&:amount) - refund_total_without_tax(order) - order.additional_tax_total, 0].max,
-              shipping: shipping(order),
-              sales_tax: sales_tax(order)
+              amount: order_total_for_shipments(shipments) - reimbursement_total_without_tax(shipments),
+              shipping: shipping(shipments),
+              sales_tax: sales_tax(order, address, shipments)
             )
         end
 
@@ -178,24 +177,27 @@ module SuperGood
         # @param line_items [Spree::LineItem::ActiveRecord_Relation] All of the
         #   order's line items.
         # @return [Hash] A TaxJar API-friendly line item collection.
-        def transaction_line_items_params(line_items)
-          {
-            line_items: line_items.filter_map { |line_item|
-              quantity = taxable_quantity line_item
-              next unless quantity.positive?
+        def transaction_line_items_params(address, _inventory_units)
+          grouped_inventory_units = _inventory_units.group_by(&:line_item)
 
-              {
-                id: line_item.id,
-                quantity: quantity,
-                product_identifier: line_item.sku,
-                description: line_item.variant.descriptive_name,
-                product_tax_code: line_item.tax_category&.tax_code,
-                unit_price: SuperGood::SolidusTaxjar.line_item_unit_price_calculator.call(line_item),
-                discount: discount(line_item),
-                sales_tax: line_item_sales_tax(line_item)
-              }
+          line_items = grouped_inventory_units.filter_map { |line_item, inventory_units|
+            quantity = inventory_units.sum(&:quantity)
+
+            next unless quantity.positive?
+
+            {
+              id: line_item.id,
+              quantity:,
+              product_identifier: line_item.sku,
+              unit_price: line_item.total / line_item.quantity,
+              discount: discount(line_item) * (quantity / line_item.quantity.to_f),
+              product_tax_code: line_item.tax_category&.tax_code,
+              description: line_item.variant.descriptive_name,
+              sales_tax: line_item_sales_tax(line_item, address, inventory_units)
             }
           }
+
+          { line_items: }
         end
 
         def discount(line_item)
@@ -206,50 +208,60 @@ module SuperGood
           SuperGood::SolidusTaxjar.shipping_calculator.call(shipments)
         end
 
-        def sales_tax(order)
+        def sales_tax(order, address, shipments)
           return 0 if order.total.zero?
 
-          order.additional_tax_total - order_reimbursement_tax_total(order)
+          tax_total = order.all_adjustments.tax.
+            select { |adjustment| adjustment.label.include?(address.address1) }.sum(&:amount)
+
+          tax_total - reimbursement_tax_total(shipments)
         end
 
-        def line_item_sales_tax(line_item)
+        def line_item_sales_tax(line_item, address, inventory_units)
           return 0 if line_item.order.total.zero?
 
-          line_item.additional_tax_total -  line_item_reimbursement_tax_total(line_item)
+          tax_total = line_item.adjustments.tax.
+            select { |adjustment| adjustment.label.include?(address.address1) }.sum(&:amount)
+
+          tax_total -  line_item_reimbursement_tax_total(inventory_units)
         end
 
-        def taxable_quantity(line_item)
-          line_item.inventory_units
-            .where.not(state: UNTAXABLE_INVENTORY_UNIT_STATES)
-            .count
+        def taxable_quantity(inventory_units)
+          inventory_units.where.not(state: UNTAXABLE_INVENTORY_UNIT_STATES).sum(&:quantity)
         end
 
-        def line_item_reimbursement_tax_total(line_item)
-          line_item
-            .inventory_units
+        def line_item_reimbursement_tax_total(inventory_units)
+          inventory_units
             .flat_map(&:return_items)
             .filter { |return_item| return_item.reimbursement.present? }
             .sum(&:additional_tax_total)
         end
 
-        def order_reimbursement_tax_total(order)
-          order.reimbursements.sum { |reimbursement| reimbursement_tax_total(reimbursement) }
+        def reimbursement_tax_total(shipments)
+          inventory_units = shipments.map(&:inventory_units).flatten.compact
+          inventory_units.flat_map(&:return_items)
+                         .filter { |return_item| return_item.reimbursement.present? }
+                         .sum(&:additional_tax_total)
         end
 
-        def reimbursement_tax_total(reimbursement)
-          reimbursement.return_items.sum(&:additional_tax_total)
+        def reimbursement_total_without_tax(shipments)
+          inventory_units = shipments.map(&:inventory_units).flatten.compact
+          inventory_units.flat_map(&:return_items)
+                         .filter { |return_item| return_item.reimbursement.present? }
+                         .sum(&:amount)
         end
 
-        def refund_total_without_tax(order)
-          order.refunds.sum do |refund|
-            if refund.reimbursement.present?
-              refund.reimbursement.total - reimbursement_tax_total(refund.reimbursement)
-            else
-              # This use case represents making a line item level adjustment, and then refunding
-              # that amount.
-              refund.amount
-            end
-          end
+        def order_total_for_shipments(shipments)
+          grouped_inventory_units = shipments.map(&:inventory_units).flatten.compact.group_by(&:line_item)
+
+          line_items_total = grouped_inventory_units.filter_map { |line_item, inventory_units|
+            quantity = inventory_units.sum(&:quantity)
+            next unless quantity.positive?
+
+            (line_item.total - discount(line_item)) * (quantity / line_item.quantity.to_f)
+          }.sum
+
+          line_items_total + shipping(shipments)
         end
       end
     end

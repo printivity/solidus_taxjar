@@ -35,7 +35,7 @@ module SuperGood
 
       def create_transaction_for(order, address, shipments)
         latest_transaction_id =
-          OrderTransaction.latest_for(order)&.transaction_id
+          OrderTransaction.latest_for(order)&.first&.transaction_id
 
         transaction_id = TransactionIdGenerator.next_transaction_id(
           order: order,

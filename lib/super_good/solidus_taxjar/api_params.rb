@@ -152,7 +152,7 @@ module SuperGood
           grouped_inventory_units = _inventory_units.group_by(&:line_item)
 
           line_items = grouped_inventory_units.filter_map { |line_item, inventory_units|
-            quantity = inventory_units.sum(&:quantity)
+            quantity = taxable_quantity(inventory_units)
 
             next unless quantity.positive?
 
@@ -181,7 +181,7 @@ module SuperGood
           grouped_inventory_units = _inventory_units.group_by(&:line_item)
 
           line_items = grouped_inventory_units.filter_map { |line_item, inventory_units|
-            quantity = inventory_units.sum(&:quantity)
+            quantity = taxable_quantity(inventory_units)
 
             next unless quantity.positive?
 
@@ -226,8 +226,12 @@ module SuperGood
           tax_total -  line_item_reimbursement_tax_total(inventory_units)
         end
 
+        def taxable_inventory(inventory_units)
+          inventory_units.reject {|i| UNTAXABLE_INVENTORY_UNIT_STATES.include?(i.state)}
+        end
+
         def taxable_quantity(inventory_units)
-          inventory_units.where.not(state: UNTAXABLE_INVENTORY_UNIT_STATES).sum(&:quantity)
+          taxable_inventory(inventory_units).sum(&:quantity)
         end
 
         def line_item_reimbursement_tax_total(inventory_units)
@@ -255,7 +259,7 @@ module SuperGood
           grouped_inventory_units = shipments.map(&:inventory_units).flatten.compact.group_by(&:line_item)
 
           line_items_total = grouped_inventory_units.filter_map { |line_item, inventory_units|
-            quantity = inventory_units.sum(&:quantity)
+            quantity = taxable_quantity(inventory_units)
             next unless quantity.positive?
 
             (line_item.total - discount(line_item)) * (quantity / line_item.quantity.to_f)

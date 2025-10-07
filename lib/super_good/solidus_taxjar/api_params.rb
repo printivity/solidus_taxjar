@@ -152,7 +152,7 @@ module SuperGood
           grouped_inventory_units = _inventory_units.group_by(&:line_item)
 
           line_items = grouped_inventory_units.filter_map { |line_item, inventory_units|
-            quantity = taxable_quantity(inventory_units)
+            quantity = inventory_units.sum(&:quantity)
 
             next unless quantity.positive?
 
@@ -259,7 +259,7 @@ module SuperGood
           grouped_inventory_units = shipments.map(&:inventory_units).flatten.compact.group_by(&:line_item)
 
           line_items_total = grouped_inventory_units.filter_map { |line_item, inventory_units|
-            quantity = taxable_quantity(inventory_units)
+            quantity = inventory_units.sum(&:quantity)
             next unless quantity.positive?
 
             (line_item.total - discount(line_item)) * (quantity / line_item.quantity.to_f)

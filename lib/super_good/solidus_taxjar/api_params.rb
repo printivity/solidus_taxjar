@@ -214,7 +214,7 @@ module SuperGood
           tax_total = order.all_adjustments.tax.
             select { |adjustment| adjustment.label.include?(address.address1) }.sum(&:amount)
 
-          tax_total - reimbursement_tax_total(shipments)
+          round_to_two_places(tax_total - reimbursement_tax_total(shipments))
         end
 
         def line_item_sales_tax(line_item, address, inventory_units)
@@ -223,7 +223,11 @@ module SuperGood
           tax_total = line_item.adjustments.tax.
             select { |adjustment| adjustment.label.include?(address.address1) }.sum(&:amount)
 
-          tax_total -  line_item_reimbursement_tax_total(inventory_units)
+          round_to_two_places(tax_total -  line_item_reimbursement_tax_total(inventory_units))
+        end
+
+        def round_to_two_places(amount)
+          BigDecimal(amount.to_s).round(2, BigDecimal::ROUND_HALF_UP)
         end
 
         def taxable_inventory(inventory_units)

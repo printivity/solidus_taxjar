@@ -8,7 +8,7 @@ module SuperGood
           {}
             .merge(customer_id(order))
             .merge(order_address_params(address))
-            .merge(line_items_params(shipments.flat_map(&:inventory_units)))
+            .merge(line_items_params(shipments.map(&:inventory_units).flatten.compact))
             .merge(shipping: shipping(shipments))
             .merge(SuperGood::SolidusTaxjar.custom_order_params.call(order))
         end
@@ -35,18 +35,22 @@ module SuperGood
         def transaction_params(order, address, shipments, transaction_id = order.number)
           {}.merge(customer_id(order))
              .merge(order_address_params(address))
-             .merge(line_items_params(shipments.flat_map(&:inventory_units)))
+             .merge(line_items_params(shipments.map(&:inventory_units).flatten.compact))
              .merge(shipping: shipping(shipments))
              .merge(SuperGood::SolidusTaxjar.custom_order_params.call(order))
+
+          # Calculate discount adjustments for proper rounding across all shipments
+          calculator = ProportionalDiscountCalculator.new(order)
+          discount_adjustments = calculator.calculate
 
           {}
             .merge(customer_id(order))
             .merge(order_address_params(address))
-            .merge(transaction_line_items_params(address, shipments.flat_map(&:inventory_units)))
+            .merge(transaction_line_items_params(address, shipments.map(&:inventory_units).flatten.compact, discount_adjustments))
             .merge(
               transaction_id: transaction_id,
               transaction_date: order.completed_at.to_formatted_s(:iso8601),
-              amount: order_total_for_shipments(shipments) - reimbursement_total_without_tax(shipments),
+              amount: order_total_for_shipments(address, shipments, discount_adjustments) - reimbursement_total_without_tax(shipments),
               shipping: shipping(shipments),
               sales_tax: sales_tax(order, address, shipments)
             )
@@ -176,8 +180,9 @@ module SuperGood
         #
         # @param line_items [Spree::LineItem::ActiveRecord_Relation] All of the
         #   order's line items.
+        # @param discount_adjustments [Hash] Pre-calculated discount amounts per line_item per address
         # @return [Hash] A TaxJar API-friendly line item collection.
-        def transaction_line_items_params(address, _inventory_units)
+        def transaction_line_items_params(address, _inventory_units, discount_adjustments = {})
           grouped_inventory_units = _inventory_units.group_by(&:line_item)
 
           line_items = grouped_inventory_units.filter_map { |line_item, inventory_units|
@@ -185,12 +190,19 @@ module SuperGood
 
             next unless quantity.positive?
 
+            # Use pre-calculated discount adjustment if available, otherwise calculate proportionally
+            discount_amount = if discount_adjustments.dig(line_item.id, address.id)
+                               discount_adjustments[line_item.id][address.id]
+                             else
+                               proportional_discount_calculator.proportional_discount(line_item, quantity)
+                             end
+
             {
               id: line_item.id,
               quantity:,
               product_identifier: line_item.sku,
               unit_price: line_item.total / line_item.quantity,
-              discount: discount(line_item) * (quantity / line_item.quantity.to_f),
+              discount: discount_amount,
               product_tax_code: line_item.tax_category&.tax_code,
               description: line_item.variant.descriptive_name,
               sales_tax: line_item_sales_tax(line_item, address, inventory_units)
@@ -202,6 +214,10 @@ module SuperGood
 
         def discount(line_item)
           ::SuperGood::SolidusTaxjar.discount_calculator.new(line_item).discount
+        end
+
+        def proportional_discount_calculator
+          @proportional_discount_calculator ||= ProportionalDiscountCalculator.new(nil)
         end
 
         def shipping(shipments)
@@ -246,30 +262,37 @@ module SuperGood
         end
 
         def reimbursement_tax_total(shipments)
-          inventory_units = shipments.flat_map(&:inventory_units)
+          inventory_units = shipments.map(&:inventory_units).flatten.compact
           inventory_units.flat_map(&:return_items)
                          .filter { |return_item| return_item.reimbursement.present? }
                          .sum(&:additional_tax_total)
         end
 
         def reimbursement_total_without_tax(shipments)
-          inventory_units = shipments.flat_map(&:inventory_units)
+          inventory_units = shipments.map(&:inventory_units).flatten.compact
           inventory_units.flat_map(&:return_items)
                          .filter { |return_item| return_item.reimbursement.present? }
                          .sum(&:amount)
         end
 
-        def order_total_for_shipments(shipments)
-          grouped_inventory_units = shipments.flat_map(&:inventory_units).group_by(&:line_item)
+        def order_total_for_shipments(address, shipments, discount_adjustments = {})
+          grouped_inventory_units = shipments.map(&:inventory_units).flatten.compact.group_by(&:line_item)
 
           line_items_total = grouped_inventory_units.filter_map { |line_item, inventory_units|
             quantity = inventory_units.sum(&:quantity)
             next unless quantity.positive?
 
-            (line_item.total - discount(line_item)) * (quantity / line_item.quantity.to_f)
+            # Use pre-calculated discount adjustment if available
+            if discount_adjustments.dig(line_item.id, address.id)
+              discount_amount = discount_adjustments[line_item.id][address.id]
+              line_item.total * (quantity / line_item.quantity.to_f) - discount_amount.abs
+            else
+              # Use the original calculation method to maintain backward compatibility
+              (line_item.total - discount(line_item)) * (quantity / line_item.quantity.to_f)
+            end
           }.sum
 
-          round_to_two_places(line_items_total + shipping(shipments))
+          line_items_total + shipping(shipments)
         end
       end
     end

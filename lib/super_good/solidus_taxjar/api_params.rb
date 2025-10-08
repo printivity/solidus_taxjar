@@ -8,7 +8,7 @@ module SuperGood
           {}
             .merge(customer_id(order))
             .merge(order_address_params(address))
-            .merge(line_items_params(shipments.map(&:inventory_units).flatten.compact))
+            .merge(line_items_params(shipments.flat_map(&:inventory_units)))
             .merge(shipping: shipping(shipments))
             .merge(SuperGood::SolidusTaxjar.custom_order_params.call(order))
         end
@@ -35,14 +35,14 @@ module SuperGood
         def transaction_params(order, address, shipments, transaction_id = order.number)
           {}.merge(customer_id(order))
              .merge(order_address_params(address))
-             .merge(line_items_params(shipments.map(&:inventory_units).flatten.compact))
+             .merge(line_items_params(shipments.flat_map(&:inventory_units)))
              .merge(shipping: shipping(shipments))
              .merge(SuperGood::SolidusTaxjar.custom_order_params.call(order))
 
           {}
             .merge(customer_id(order))
             .merge(order_address_params(address))
-            .merge(transaction_line_items_params(address, shipments.map(&:inventory_units).flatten.compact))
+            .merge(transaction_line_items_params(address, shipments.flat_map(&:inventory_units)))
             .merge(
               transaction_id: transaction_id,
               transaction_date: order.completed_at.to_formatted_s(:iso8601),
@@ -246,21 +246,21 @@ module SuperGood
         end
 
         def reimbursement_tax_total(shipments)
-          inventory_units = shipments.map(&:inventory_units).flatten.compact
+          inventory_units = shipments.flat_map(&:inventory_units)
           inventory_units.flat_map(&:return_items)
                          .filter { |return_item| return_item.reimbursement.present? }
                          .sum(&:additional_tax_total)
         end
 
         def reimbursement_total_without_tax(shipments)
-          inventory_units = shipments.map(&:inventory_units).flatten.compact
+          inventory_units = shipments.flat_map(&:inventory_units)
           inventory_units.flat_map(&:return_items)
                          .filter { |return_item| return_item.reimbursement.present? }
                          .sum(&:amount)
         end
 
         def order_total_for_shipments(shipments)
-          grouped_inventory_units = shipments.map(&:inventory_units).flatten.compact.group_by(&:line_item)
+          grouped_inventory_units = shipments.flat_map(&:inventory_units).group_by(&:line_item)
 
           line_items_total = grouped_inventory_units.filter_map { |line_item, inventory_units|
             quantity = inventory_units.sum(&:quantity)
@@ -269,7 +269,7 @@ module SuperGood
             (line_item.total - discount(line_item)) * (quantity / line_item.quantity.to_f)
           }.sum
 
-          line_items_total + shipping(shipments)
+          round_to_two_places(line_items_total + shipping(shipments))
         end
       end
     end

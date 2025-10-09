@@ -296,8 +296,6 @@ module SuperGood
           tax_total = line_item.adjustments.tax.
             select { |adjustment| adjustment.label.include?(address.address1) }.sum(&:amount)
 
-          binding.break
-
           round_to_two_places(tax_total -  line_item_reimbursement_tax_total(inventory_units))
         end
 

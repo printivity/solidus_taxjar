@@ -11,8 +11,6 @@ module SuperGood
     #   adjustments = calculator.calculate
     #   # => { line_item_id => { address_id => discount_amount } }
     class ProportionalDiscountCalculator
-      UNTAXABLE_INVENTORY_UNIT_STATES = ["returned", "canceled"]
-
       # @param order [Spree::Order] The order to calculate discounts for
       # @param discount_calculator [#call] Callable that returns discount for a line item
       def initialize(order, discount_calculator = nil)
@@ -72,7 +70,7 @@ module SuperGood
       def gather_shipment_quantities(line_item)
         @order.shipments.filter_map do |shipment|
           inventory_units = shipment.inventory_units.select { |iu| iu.line_item_id == line_item.id }
-          quantity = taxable_quantity(inventory_units)
+          quantity = inventory_units.sum(&:quantity)
           next unless quantity.positive?
 
           { address_id: shipment.address.id, quantity: quantity }
@@ -105,14 +103,6 @@ module SuperGood
         proportional_discounts.each_with_object({}) do |pd, hash|
           hash[pd[:address_id]] = pd[:discount]
         end
-      end
-
-      def taxable_quantity(inventory_units)
-        taxable_inventory(inventory_units).sum(&:quantity)
-      end
-
-      def taxable_inventory(inventory_units)
-        inventory_units.reject { |iu| UNTAXABLE_INVENTORY_UNIT_STATES.include?(iu.state) }
       end
 
       def round_to_two_places(amount)

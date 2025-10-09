@@ -9,13 +9,13 @@ module SuperGood
           discount_calculator = ProportionalDiscountCalculator.new(order)
           discount_adjustments = discount_calculator.calculate
 
-          amount_calculator = ProportionalAmountCalculator.new(order)
-          amount_adjustments = amount_calculator.calculate
+          unit_price_calculator = ProportionalUnitPriceCalculator.new(order)
+          unit_price_adjustments = unit_price_calculator.calculate
 
           {}
             .merge(customer_id(order))
             .merge(order_address_params(address))
-            .merge(order_line_items_params(address, shipments.map(&:inventory_units).flatten.compact, discount_adjustments, amount_adjustments))
+            .merge(order_line_items_params(address, shipments.map(&:inventory_units).flatten.compact, discount_adjustments, unit_price_adjustments))
             .merge(shipping: shipping(shipments))
             .merge(SuperGood::SolidusTaxjar.custom_order_params.call(order))
         end
@@ -44,17 +44,17 @@ module SuperGood
           discount_calculator = ProportionalDiscountCalculator.new(order)
           discount_adjustments = discount_calculator.calculate
 
-          amount_calculator = ProportionalAmountCalculator.new(order)
-          amount_adjustments = amount_calculator.calculate
+          unit_price_calculator = ProportionalUnitPriceCalculator.new(order)
+          unit_price_adjustments = unit_price_calculator.calculate
 
           {}
             .merge(customer_id(order))
             .merge(order_address_params(address))
-            .merge(transaction_line_items_params(address, shipments.map(&:inventory_units).flatten.compact, discount_adjustments, amount_adjustments))
+            .merge(transaction_line_items_params(address, shipments.map(&:inventory_units).flatten.compact, discount_adjustments, unit_price_adjustments))
             .merge(
               transaction_id: transaction_id,
               transaction_date: order.completed_at.to_formatted_s(:iso8601),
-              amount: order_total_for_shipments(address, shipments, discount_adjustments, amount_adjustments) - reimbursement_total_without_tax(shipments),
+              amount: order_total_for_shipments(address, shipments, discount_adjustments, unit_price_adjustments) - reimbursement_total_without_tax(shipments),
               shipping: shipping(shipments),
               sales_tax: sales_tax(order, address, shipments)
             )
@@ -167,8 +167,8 @@ module SuperGood
             {
               id: line_item.id,
               quantity:,
-              unit_price: line_item.total / line_item.quantity,
-              discount: discount(line_item) * (quantity / line_item.quantity.to_f),
+              unit_price: BigDecimal(line_item.total.to_s) / BigDecimal(line_item.quantity),
+              discount: BigDecimal(discount(line_item).to_s) * (BigDecimal(quantity) / BigDecimal(line_item.quantity)),
               product_tax_code: line_item.tax_category&.tax_code
             }
           }
@@ -183,9 +183,9 @@ module SuperGood
         # @param address [Spree::Address] The address for this shipment group
         # @param _inventory_units [Array] Inventory units for the shipments
         # @param discount_adjustments [Hash] Pre-calculated discount amounts per line_item per address
-        # @param amount_adjustments [Hash] Pre-calculated proportional amounts per line_item per address
+        # @param unit_price_adjustments [Hash] Pre-calculated unit prices per line_item per address
         # @return [Hash] A TaxJar API-friendly line item collection.
-        def order_line_items_params(address, _inventory_units, discount_adjustments = {}, amount_adjustments = {})
+        def order_line_items_params(address, _inventory_units, discount_adjustments = {}, unit_price_adjustments = {})
           grouped_inventory_units = _inventory_units.group_by(&:line_item)
 
           line_items = grouped_inventory_units.filter_map { |line_item, inventory_units|
@@ -200,15 +200,13 @@ module SuperGood
                                proportional_discount_calculator.proportional_discount(line_item, quantity)
                              end
 
-            # Use pre-calculated proportional amount if available, otherwise calculate it
-            proportional_amount = if amount_adjustments.dig(line_item.id, address.id)
-                                   amount_adjustments[line_item.id][address.id]
-                                 else
-                                   line_item.total * (quantity / line_item.quantity.to_f)
-                                 end
-
-            # Calculate unit price from the proportional amount
-            unit_price = quantity.positive? ? proportional_amount / quantity : line_item.price
+            # Use pre-calculated unit price if available, otherwise calculate it from proportional amount
+            unit_price = if unit_price_adjustments.dig(line_item.id, address.id)
+                          unit_price_adjustments[line_item.id][address.id]
+                        else
+                          proportional_amount = BigDecimal(line_item.total.to_s) * (BigDecimal(quantity) / BigDecimal(line_item.quantity))
+                          quantity.positive? ? proportional_amount / BigDecimal(quantity) : line_item.price
+                        end
 
             {
               id: line_item.id,
@@ -231,9 +229,9 @@ module SuperGood
         # @param line_items [Spree::LineItem::ActiveRecord_Relation] All of the
         #   order's line items.
         # @param discount_adjustments [Hash] Pre-calculated discount amounts per line_item per address
-        # @param amount_adjustments [Hash] Pre-calculated proportional amounts per line_item per address
+        # @param unit_price_adjustments [Hash] Pre-calculated unit prices per line_item per address
         # @return [Hash] A TaxJar API-friendly line item collection.
-        def transaction_line_items_params(address, _inventory_units, discount_adjustments = {}, amount_adjustments = {})
+        def transaction_line_items_params(address, _inventory_units, discount_adjustments = {}, unit_price_adjustments = {})
           grouped_inventory_units = _inventory_units.group_by(&:line_item)
 
           line_items = grouped_inventory_units.filter_map { |line_item, inventory_units|
@@ -248,15 +246,13 @@ module SuperGood
                                proportional_discount_calculator.proportional_discount(line_item, quantity)
                              end
 
-            # Use pre-calculated proportional amount if available, otherwise calculate it
-            proportional_amount = if amount_adjustments.dig(line_item.id, address.id)
-                                   amount_adjustments[line_item.id][address.id]
-                                 else
-                                   line_item.total * (quantity / line_item.quantity.to_f)
-                                 end
-
-            # Calculate unit price from the proportional amount
-            unit_price = quantity.positive? ? proportional_amount / quantity : line_item.price
+            # Use pre-calculated unit price if available, otherwise calculate it from proportional amount
+            unit_price = if unit_price_adjustments.dig(line_item.id, address.id)
+                          unit_price_adjustments[line_item.id][address.id]
+                        else
+                          proportional_amount = BigDecimal(line_item.total.to_s) * (BigDecimal(quantity) / BigDecimal(line_item.quantity))
+                          quantity.positive? ? proportional_amount / BigDecimal(quantity) : line_item.price
+                        end
 
             {
               id: line_item.id,
@@ -300,6 +296,8 @@ module SuperGood
           tax_total = line_item.adjustments.tax.
             select { |adjustment| adjustment.label.include?(address.address1) }.sum(&:amount)
 
+          binding.break
+
           round_to_two_places(tax_total -  line_item_reimbursement_tax_total(inventory_units))
         end
 
@@ -329,7 +327,6 @@ module SuperGood
                          .sum(&:additional_tax_total)
         end
 
-
         def reimbursement_total_without_tax(shipments)
           inventory_units = shipments.map(&:inventory_units).flatten.compact
           inventory_units.flat_map(&:return_items)
@@ -337,7 +334,7 @@ module SuperGood
                          .sum(&:amount)
         end
 
-        def order_total_for_shipments(address, shipments, discount_adjustments = {}, amount_adjustments = {})
+        def order_total_for_shipments(address, shipments, discount_adjustments = {}, unit_price_adjustments = {})
           grouped_inventory_units = shipments.map(&:inventory_units).flatten.compact.group_by(&:line_item)
 
           line_items_total = grouped_inventory_units.filter_map { |line_item, inventory_units|
@@ -345,26 +342,33 @@ module SuperGood
             next unless quantity.positive?
 
             # Use pre-calculated adjustments if available
-            if amount_adjustments.dig(line_item.id, address.id) && discount_adjustments.dig(line_item.id, address.id)10
-              # Use both pre-calculated amount and discount
-              proportional_amount = amount_adjustments[line_item.id][address.id]
-              discount_amount = discount_adjustments[line_item.id][address.id]
+            if unit_price_adjustments.dig(line_item.id, address.id) && discount_adjustments.dig(line_item.id, address.id)
+              # Use both pre-calculated unit price and discount
+              unit_price = BigDecimal(unit_price_adjustments[line_item.id][address.id].to_s)
+              proportional_amount = unit_price * BigDecimal(quantity)
+              discount_amount = BigDecimal(discount_adjustments[line_item.id][address.id].to_s)
               proportional_amount - discount_amount.abs
             elsif discount_adjustments.dig(line_item.id, address.id)
               # Only discount is pre-calculated
-              discount_amount = discount_adjustments[line_item.id][address.id]
-              line_item.total * (quantity / line_item.quantity.to_f) - discount_amount.abs
-            elsif amount_adjustments.dig(line_item.id, address.id)
-              # Only amount is pre-calculated
-              proportional_amount = amount_adjustments[line_item.id][address.id]
-              proportional_amount - (discount(line_item) * (quantity / line_item.quantity.to_f)).abs
+              discount_amount = BigDecimal(discount_adjustments[line_item.id][address.id].to_s)
+              proportional_amount = BigDecimal(line_item.total.to_s) * (BigDecimal(quantity) / BigDecimal(line_item.quantity))
+              proportional_amount - discount_amount.abs
+            elsif unit_price_adjustments.dig(line_item.id, address.id)
+              # Only unit price is pre-calculated
+              unit_price = BigDecimal(unit_price_adjustments[line_item.id][address.id].to_s)
+              proportional_amount = unit_price * BigDecimal(quantity)
+              proportional_discount = BigDecimal(discount(line_item).to_s) * (BigDecimal(quantity) / BigDecimal(line_item.quantity))
+              proportional_amount - proportional_discount.abs
             else
               # Use the original calculation method to maintain backward compatibility
-              (line_item.total - discount(line_item)) * (quantity / line_item.quantity.to_f)
+              subtotal = BigDecimal(line_item.total.to_s) - BigDecimal(discount(line_item).to_s)
+              ratio = BigDecimal(quantity) / BigDecimal(line_item.quantity)
+              subtotal * ratio
             end
           }.sum
 
-          line_items_total + shipping(shipments)
+          # round line_items_total to fix any weird floating point errors
+          line_items_total.round(8) + shipping(shipments)
         end
       end
     end

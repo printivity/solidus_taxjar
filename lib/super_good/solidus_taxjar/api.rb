@@ -57,7 +57,7 @@ module SuperGood
 
       def show_latest_transaction_for(order)
         latest_transaction_id =
-          OrderTransaction.latest_for(order)&.transaction_id
+          OrderTransaction.latest_for(order)&.first&.transaction_id
 
         return unless latest_transaction_id
 

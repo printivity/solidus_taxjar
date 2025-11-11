@@ -6,11 +6,13 @@ module SuperGood
       queue_as { SuperGood::SolidusTaxjar.job_queue }
 
       def perform(order, transaction_sync_batch = nil)
-        transaction_sync_log = SuperGood::SolidusTaxjar::TransactionSyncLog.create!(
-          transaction_sync_batch: transaction_sync_batch,
-          order: order
-        )
         order.shipments.group_by(&:address).each do |address, shipments|
+          # Create a separate transaction_sync_log for each shipment group
+          transaction_sync_log = SuperGood::SolidusTaxjar::TransactionSyncLog.create!(
+            transaction_sync_batch: transaction_sync_batch,
+            order: order
+          )
+
           begin
             order_transaction = SuperGood::SolidusTaxjar.reporting.show_or_create_transaction(order, address, shipments)
             transaction_sync_log.update!(order_transaction: order_transaction, status: :success)

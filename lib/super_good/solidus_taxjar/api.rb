@@ -35,11 +35,12 @@ module SuperGood
 
       def create_transaction_for(order, address, shipments)
         latest_transaction_id =
-          OrderTransaction.latest_for(order)&.first&.transaction_id
+          OrderTransaction.latest_for(order, address)&.first&.transaction_id
 
         transaction_id = TransactionIdGenerator.next_transaction_id(
           order: order,
-          current_transaction_id: latest_transaction_id
+          current_transaction_id: latest_transaction_id,
+          address: address
         )
 
         taxjar_client.create_order(
@@ -55,9 +56,9 @@ module SuperGood
         taxjar_client.delete_order order.number
       end
 
-      def show_latest_transaction_for(order)
+      def show_latest_transaction_for(order, address = nil)
         latest_transaction_id =
-          OrderTransaction.latest_for(order)&.first&.transaction_id
+          OrderTransaction.latest_for(order, address)&.first&.transaction_id
 
         return unless latest_transaction_id
 
@@ -66,17 +67,17 @@ module SuperGood
         nil
       end
 
-      def create_refund_transaction_for(order)
-        unless OrderTransaction.latest_for(order)
-          raise NotImplementedError,
-            "No latest TaxJar order transaction for #{order.number}. "       \
-            "Backfilling TaxJar transaction orders from Solidus is not yet " \
-            "implemented."
+      def create_refund_transaction_for(order_transaction)
+        unless order_transaction
+          raise ArgumentError, "order_transaction is required"
         end
 
-        taxjar_order = show_latest_transaction_for(order)
+        taxjar_order = taxjar_client.show_order(order_transaction.transaction_id)
 
-        taxjar_client.create_refund ApiParams.refund_transaction_params(order, taxjar_order)
+        taxjar_client.create_refund ApiParams.refund_transaction_params(order_transaction.order, taxjar_order)
+      rescue Taxjar::Error::NotFound
+        raise NotImplementedError,
+          "No TaxJar order transaction found for transaction_id #{order_transaction.transaction_id}. "
       end
 
       def create_refund_for(reimbursement)

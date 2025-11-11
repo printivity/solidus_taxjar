@@ -17,16 +17,26 @@ module SuperGood
         #   transaction ID.
         # @param current_transaction_id [String] the current transaction ID for
         #   the order if it exists on TaxJar.
+        # @param address [Spree::Address] the address for this transaction (used for multiple shipment groups).
         # @return [String] the next sequential `transaction_id`
-        def next_transaction_id(order:, current_transaction_id: nil)
+        def next_transaction_id(order:, current_transaction_id: nil, address: nil)
+          base_id = address ? "#{order.number}-A#{address.id}" : order.number.to_s
+
           if current_transaction_id.nil?
-            "#{order.number}"
-          elsif order.number == current_transaction_id
+            base_id
+          elsif base_id == current_transaction_id
             "#{current_transaction_id}-1"
           else
+            # Extract the version number from current_transaction_id
             parts = current_transaction_id.rpartition("-")
-            parts.last.next!
-            parts.join
+            if parts.last.match?(/^\d+$/)
+              # It's a version number, increment it
+              parts.last.next!
+              parts.join
+            else
+              # No version number yet, add -1
+              "#{current_transaction_id}-1"
+            end
           end
         end
 

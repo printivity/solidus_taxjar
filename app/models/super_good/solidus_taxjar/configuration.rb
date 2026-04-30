@@ -1,11 +1,9 @@
-require 'spree/preferences/persistable'
-
 module SuperGood
   module SolidusTaxjar
     class Configuration < ::Spree::Base
       include ::Spree::Preferences::Persistable
 
-      self.table_name = 'solidus_taxjar_configuration'
+      self.table_name = "solidus_taxjar_configuration"
       preference :reporting_enabled_at_integer, :integer, default: nil
 
       def preferred_reporting_enabled
@@ -14,7 +12,7 @@ module SuperGood
       end
 
       def preferred_reporting_enabled_at
-        Time.at(SuperGood::SolidusTaxjar.configuration.preferred_reporting_enabled_at_integer).to_datetime
+        Time.zone.at(SuperGood::SolidusTaxjar.configuration.preferred_reporting_enabled_at_integer).to_datetime
       end
 
       class << self

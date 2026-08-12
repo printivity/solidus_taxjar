@@ -25,6 +25,7 @@ module SuperGood
     class << self
       attr_accessor :cache_duration
       attr_accessor :cache_key
+      attr_accessor :customer_email_enabled
       attr_accessor :custom_order_params
       attr_accessor :discount_calculator
       attr_accessor :exception_handler
@@ -69,6 +70,7 @@ module SuperGood
       record_type = record.class.name.demodulize.underscore
       ApiParams.send("#{record_type}_params", record).to_json
     }
+    self.customer_email_enabled = ->(_user) { true }
     self.custom_order_params = ->(order) { {} }
     self.discount_calculator = ::SuperGood::SolidusTaxjar::DiscountCalculator
     self.exception_handler = ->(e) {

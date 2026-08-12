@@ -43,12 +43,16 @@ module SuperGood
 
         def send_approved_email(event)
           user = event.payload[:user]
+          return unless SuperGood::SolidusTaxjar.customer_email_enabled.call(user)
+
           state = event.payload[:state]
           SuperGood::SolidusTaxjar::TaxExemptionMailer.approved_email(user, state).deliver_now
         end
 
         def send_disapproved_email(event)
           user = event.payload[:user]
+          return unless SuperGood::SolidusTaxjar.customer_email_enabled.call(user)
+
           state = event.payload[:state]
           SuperGood::SolidusTaxjar::TaxExemptionMailer.disapproved_email(user, state).deliver_now
         end

@@ -91,6 +91,12 @@ RSpec.describe SuperGood::SolidusTaxjar do
       end
     end
 
+    describe ".customer_email_enabled" do
+      subject { described_class.customer_email_enabled.call(Spree::User.new) }
+
+      it { is_expected.to eq true }
+    end
+
     describe ".discount_calculator" do
       subject { described_class.discount_calculator }
       it { is_expected.to eq SuperGood::SolidusTaxjar::DiscountCalculator }

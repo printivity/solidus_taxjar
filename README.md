@@ -176,6 +176,12 @@ Developers can configure the following settings in an initializer:
 
 	Default value: `{}`
 
+- `customer_email_enabled`: A function that receives a user and determines
+  whether customer-facing tax exemption approval and disapproval emails are
+  sent. The internal tax exemption request notification is not affected.
+
+  Default value: `true`
+
 - `discount_calculator`: A discount calculator class. A safe default
   calculator is provided: it handles promotions that rely on line item and
   shipment adjustments. Since TaxJar requires dicounts to be specified per line

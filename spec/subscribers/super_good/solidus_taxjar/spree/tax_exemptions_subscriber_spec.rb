@@ -9,7 +9,7 @@ RSpec.describe SuperGood::SolidusTaxjar::Spree::TaxExemptionsSubscriber do
   let(:state) { instance_double(Spree::State) }
 
   def build_event(state: nil)
-    instance_double(Omnes::UnstructuredEvent, payload: { user: user, state: state })
+    instance_double(Omnes::UnstructuredEvent, payload: {user: user, state: state})
   end
 
   before do

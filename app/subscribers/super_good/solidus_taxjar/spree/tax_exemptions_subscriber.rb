@@ -26,8 +26,8 @@ module SuperGood
           if customer
             SuperGood::SolidusTaxjar.api.update_customer_for(user) if eligible_tax_exemption(user)
             SuperGood::SolidusTaxjar.api.delete_customer_for(user) if no_exemptions(user)
-          else
-            SuperGood::SolidusTaxjar.api.create_customer_for(user) if eligible_tax_exemption(user)
+          elsif eligible_tax_exemption(user)
+            SuperGood::SolidusTaxjar.api.create_customer_for(user)
           end
         end
 

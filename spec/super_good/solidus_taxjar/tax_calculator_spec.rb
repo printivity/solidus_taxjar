@@ -122,6 +122,64 @@ RSpec.describe ::SuperGood::SolidusTaxjar::TaxCalculator do
       end
     end
 
+    context "when one address group's shipments have nothing to price" do
+      let(:address) do
+        ::Spree::Address.new(
+          zipcode: "90210",
+          address1: "9900 Wilshire Blvd",
+          city: "Beverly Hills",
+          state_name: "California",
+          country: ::Spree::Country.new(iso: "US")
+        )
+      end
+
+      let(:other_address) do
+        ::Spree::Address.new(
+          zipcode: "10001",
+          address1: "350 5th Ave",
+          city: "New York",
+          state_name: "New York",
+          country: ::Spree::Country.new(iso: "US")
+        )
+      end
+
+      let(:emptied_shipment) do
+        ::Spree::Shipment.new(id: 4, cost: 0, address: other_address)
+      end
+
+      let(:order) do
+        ::Spree::Order.new(
+          id: 10,
+          store: store,
+          ship_address: address,
+          line_items: line_items,
+          shipments: [boring_shipment, emptied_shipment]
+        )
+      end
+
+      before do
+        allow(calculator).to receive(:taxable_address?).with(address).and_return(true)
+        allow(dummy_api).to receive(:tax_for).and_return(
+          instance_double(::Taxjar::Tax, breakdown: nil)
+        )
+      end
+
+      # A shipment can be left without inventory units mid-recalculation. TaxJar rejects the
+      # resulting payload outright, and one rejection would lose the tax for the shipments
+      # that still carry stock.
+      it "never asks TaxJar about the group with nothing to price" do
+        subject
+
+        expect(dummy_api).not_to have_received(:tax_for).with(order, other_address, [emptied_shipment])
+      end
+
+      it "still asks TaxJar about the group that has contents" do
+        subject
+
+        expect(dummy_api).to have_received(:tax_for).with(order, nil, [boring_shipment])
+      end
+    end
+
     context "when the API encounters an error" do
       let(:address) do
         ::Spree::Address.new(

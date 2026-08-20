@@ -18,6 +18,8 @@ module SuperGood
           shipment_taxes = []
 
           order.shipments.group_by(&:address).each do |address, shipments|
+            next if nothing_to_price?(shipments)
+
             @address = address
             @shipments = shipments
 
@@ -40,6 +42,20 @@ module SuperGood
       private
 
       attr_reader :order, :api
+
+      # TaxJar rejects a request carrying neither an amount nor any line items, and this loop
+      # shares a single rescue, so one rejection discards the tax for every other address group
+      # in the order. A group whose shipments hold no inventory units and no shipping cost has
+      # nothing to price, so skip it and let the rest of the order calculate.
+      #
+      # Removing a line item opens that window: Solidus recalculates while the emptied shipment
+      # is still attached, before the caller reconciles it away.
+      def nothing_to_price?(shipments)
+        inventory_units = shipments.flat_map(&:inventory_units)
+        return false if inventory_units.sum { |unit| unit.quantity.to_i }.positive?
+
+        SuperGood::SolidusTaxjar.shipping_calculator.call(shipments).to_d.zero?
+      end
 
       def calculate_line_item_taxes
         @taxjar_breakdown.line_items.map { |taxjar_line_item|

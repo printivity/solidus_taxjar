@@ -17,7 +17,7 @@ module Spree
           redirect_to admin_user_tax_exemptions_path
         else
           flash[:error] = "State exemption failed to save"
-          redirect_back(fallback_location: new_admin_user_tax_exemptions_exemption_region_path)
+          redirect_back(fallback_location: new_admin_user_tax_exemptions_exempt_region_path(@user))
         end
       end
 

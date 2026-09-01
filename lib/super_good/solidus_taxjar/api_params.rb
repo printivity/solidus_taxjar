@@ -12,10 +12,20 @@ module SuperGood
           unit_price_calculator = ProportionalUnitPriceCalculator.new(order)
           unit_price_adjustments = unit_price_calculator.calculate
 
+          line_items_params = order_line_items_params(
+            address, shipments.map(&:inventory_units).flatten.compact, discount_adjustments, unit_price_adjustments
+          )
+
           {}
             .merge(customer_id(order))
             .merge(order_address_params(address))
-            .merge(order_line_items_params(address, shipments.map(&:inventory_units).flatten.compact, discount_adjustments, unit_price_adjustments))
+            .merge(line_items_params)
+            # TaxJar rejects a request that carries neither line items nor an amount. A shipment
+            # can be left with a shipping charge but no inventory units to price -- e.g. mid
+            # recalculation, while Solidus still has the just-emptied shipment attached, ahead of
+            # the caller reconciling it away -- so fall back to a $0 taxable amount rather than
+            # send a payload TaxJar will always reject.
+            .merge(line_items_params[:line_items].empty? ? { amount: 0 } : {})
             .merge(shipping: shipping(shipments))
             .merge(SuperGood::SolidusTaxjar.custom_order_params.call(order))
         end

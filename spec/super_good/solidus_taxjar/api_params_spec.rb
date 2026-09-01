@@ -615,6 +615,32 @@ RSpec.describe SuperGood::SolidusTaxjar::ApiParams do
     end
   end
 
+  describe ".order_params when a shipment has nothing left to price" do
+    subject { described_class.order_params(order, address, [emptied_shipment]) }
+
+    let(:order) { ::Spree::Order.new(id: 20, line_items: []) }
+
+    let(:address) do
+      ::Spree::Address.new(
+        zipcode: "10001",
+        address1: "350 5th Ave",
+        city: "New York",
+        state_name: "New York",
+        country: ::Spree::Country.new(iso: "US")
+      )
+    end
+
+    # A shipment can be left holding a shipping charge from before its last line item was
+    # removed -- Solidus recalculates while the emptied shipment is still attached, ahead of
+    # the caller's own reconciliation. TaxJar rejects a payload carrying neither line items
+    # nor an amount, so a stale nonzero cost must not be sent as an empty, unpriceable request.
+    let(:emptied_shipment) { ::Spree::Shipment.new(id: 9, cost: BigDecimal("12.34"), inventory_units: []) }
+
+    it "falls back to a $0 amount instead of a payload TaxJar will reject" do
+      expect(subject).to include(amount: 0, line_items: [], shipping: BigDecimal("12.34"))
+    end
+  end
+
   describe "#taxjar_customer_params" do
     subject { described_class.customer_params(taxjar_customer) }
 

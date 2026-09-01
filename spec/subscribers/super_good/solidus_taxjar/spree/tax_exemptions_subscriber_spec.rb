@@ -53,4 +53,30 @@ RSpec.describe SuperGood::SolidusTaxjar::Spree::TaxExemptionsSubscriber do
     expect(mailer_class).to have_received(:tax_exemption_request).with(user)
     expect(delivery).to have_received(:deliver_now)
   end
+
+  describe "#delete_customer" do
+    let(:api) { instance_double(SuperGood::SolidusTaxjar::Api) }
+
+    before do
+      allow(SuperGood::SolidusTaxjar).to receive(:api).and_return(api)
+    end
+
+    it "deletes the TaxJar customer when one exists" do
+      allow(api).to receive(:show_customer_for).with(user).and_return(instance_double(Taxjar::Customer))
+      allow(api).to receive(:delete_customer_for).with(user)
+
+      subscriber.delete_customer(build_event)
+
+      expect(api).to have_received(:delete_customer_for).with(user)
+    end
+
+    it "does not call delete when TaxJar has no customer for the user" do
+      allow(api).to receive(:show_customer_for).with(user).and_return(nil)
+      allow(api).to receive(:delete_customer_for)
+
+      subscriber.delete_customer(build_event)
+
+      expect(api).not_to have_received(:delete_customer_for)
+    end
+  end
 end

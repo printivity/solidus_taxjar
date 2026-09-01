@@ -33,6 +33,8 @@ module SuperGood
 
         def delete_customer(event)
           user = event.payload[:user]
+          return unless SuperGood::SolidusTaxjar.api.show_customer_for(user)
+
           SuperGood::SolidusTaxjar.api.delete_customer_for(user)
         end
 

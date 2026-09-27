@@ -13,11 +13,15 @@ RSpec.describe SuperGood::SolidusTaxjar::Api do
     end
 
     it "sets the correct headers" do
-      expect_any_instance_of(::Taxjar::Client).to receive(:set_api_config).with('headers', {
+      expect(subject.send(:taxjar_client).get_api_config('headers')).to eq({
         'x-api-version' => '2020-08-07',
         'plugin' => 'supergoodsolidustaxjar'
       })
-      subject
+    end
+
+    it "sets the configured HTTP timeouts" do
+      expect(subject.send(:taxjar_client).get_api_config('http_timeouts'))
+        .to eq(SuperGood::SolidusTaxjar.http_timeouts)
     end
   end
 

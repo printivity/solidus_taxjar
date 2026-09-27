@@ -10,7 +10,23 @@ module SuperGood
           'x-api-version' => '2020-08-07',
           'plugin' => 'supergoodsolidustaxjar'
         })
+        client.set_api_config('http_timeouts', validated_http_timeouts)
         client
+      end
+
+      def self.validated_http_timeouts
+        timeouts = SuperGood::SolidusTaxjar.http_timeouts
+        phases = %i[connect write read]
+
+        valid = timeouts.is_a?(Hash) &&
+          phases.all? { |phase| timeouts[phase].is_a?(Numeric) && timeouts[phase].positive? }
+        unless valid
+          raise ArgumentError,
+            "SuperGood::SolidusTaxjar.http_timeouts must set positive numeric " \
+            "connect, write and read seconds, got #{timeouts.inspect}"
+        end
+
+        timeouts.slice(*phases)
       end
 
       def initialize(taxjar_client: self.class.default_taxjar_client)

@@ -67,10 +67,7 @@ module SuperGood
         
         # Distribute rounding error evenly across shipments
         distribute_rounding_error!(proportional_data, line_item.total)
-        
-        # Calculate unit prices from adjusted proportional totals
-        calculate_unit_prices_from_totals(proportional_data)
-        
+
         build_unit_prices_hash(proportional_data)
       end
 
@@ -116,17 +113,18 @@ module SuperGood
         end
       end
 
-      def calculate_unit_prices_from_totals(proportional_data)
-        proportional_data.each do |pd|
-          # Calculate unit price from adjusted proportional total
-          # Don't round to 2 decimals - keep full precision
-          pd[:unit_price] = pd[:proportional_total] / pd[:quantity]
-        end
-      end
-
+      # One line item can sit in several shipments that go to the same address. TaxJar gets one
+      # line per line item per address, with the quantity summed across those shipments, so the
+      # unit price is the summed proportional total over the summed quantity. Assigning per
+      # shipment kept only the last shipment's unit price.
+      #
+      # The unit price keeps full precision (no rounding to 2 decimals) so that
+      # unit_price * quantity reproduces the adjusted proportional total.
       def build_unit_prices_hash(proportional_data)
-        proportional_data.each_with_object({}) do |pd, hash|
-          hash[pd[:address_id]] = pd[:unit_price]
+        proportional_data.group_by { |pd| pd[:address_id] }.transform_values do |address_data|
+          total = address_data.sum { |pd| pd[:proportional_total] }
+          quantity = address_data.sum { |pd| pd[:quantity] }
+          total / quantity
         end
       end
 

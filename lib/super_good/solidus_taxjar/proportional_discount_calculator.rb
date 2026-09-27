@@ -129,10 +129,13 @@ module SuperGood
         end
       end
 
+      # One line item can sit in several shipments that go to the same address. TaxJar gets one
+      # line per line item per address, so the shares of every shipment to that address are
+      # summed. Assigning instead of summing kept only the last shipment's share.
       def build_adjustments_hash(proportional_discounts)
-        proportional_discounts.each_with_object({}) do |pd, hash|
-          hash[pd[:address_id]] = pd[:discount]
-        end
+        proportional_discounts.each_with_object(Hash.new(BigDecimal("0"))) do |pd, hash|
+          hash[pd[:address_id]] += pd[:discount]
+        end.to_h
       end
 
       def round_to_two_places(amount)

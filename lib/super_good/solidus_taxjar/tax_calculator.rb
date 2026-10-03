@@ -23,8 +23,17 @@ module SuperGood
             @address = address
             @shipments = shipments
 
-            @taxjar_breakdown = cache do
-               api.tax_for(order, address, shipments).breakdown
+            # Designed fallback: a TaxJar failure for one address group (an error response or a
+            # timeout) leaves that group untaxed and keeps the tax already calculated for the
+            # others, so the order can complete with partial tax. Every failed group is logged
+            # and passed to exception_handler with the order and address context.
+            begin
+              @taxjar_breakdown = cache do
+                 api.tax_for(order, address, shipments).breakdown
+              end
+            rescue Taxjar::Error => e
+              report_failure(e, address:, shipments:)
+              next
             end
 
             next unless @taxjar_breakdown
@@ -35,7 +44,9 @@ module SuperGood
 
           ::Spree::Tax::OrderTax.new(order_id: order.id, line_item_taxes:, shipment_taxes:)
       rescue => e
-        exception_handler.call(e)
+        # Anything other than a TaxJar error for one group (a bug in this calculator or the
+        # host app's labels, for example) still drops the whole order's tax, as before.
+        report_failure(e)
         no_tax
       end
 
@@ -43,10 +54,36 @@ module SuperGood
 
       attr_reader :order, :api
 
-      # TaxJar rejects a request carrying neither an amount nor any line items, and this loop
-      # shares a single rescue, so one rejection discards the tax for every other address group
-      # in the order. A group whose shipments hold no inventory units and no shipping cost has
-      # nothing to price, so skip it and let the rest of the order calculate.
+      # Logs the failure with its context and hands it to exception_handler. A handler that
+      # takes two arguments also receives the context hash; a one-argument handler, the
+      # original contract, receives only the error.
+      def report_failure(error, address: nil, shipments: nil)
+        context = {
+          order_id: order.id,
+          order_number: order.number,
+          scope: address ? "address_group" : "order",
+          address_id: address&.id,
+          address_state: address&.state&.abbr,
+          address_zipcode: address&.zipcode,
+          shipment_ids: shipments&.map(&:id),
+          error_class: error.class.name,
+          error_message: error.message
+        }.compact
+
+        outcome = address ? "this address group gets no tax, the order keeps the tax from other groups" : "the order gets no tax"
+        SuperGood::SolidusTaxjar.logger.error("TaxJar tax calculation failed; #{outcome}: #{context.to_json}")
+
+        handler = exception_handler
+        if handler.arity == 1
+          handler.call(error)
+        else
+          handler.call(error, context)
+        end
+      end
+
+      # TaxJar rejects a request carrying neither an amount nor any line items. A group whose
+      # shipments hold no inventory units and no shipping cost has nothing to price, so skip it
+      # rather than send a request TaxJar will always reject.
       #
       # Removing a line item opens that window: Solidus recalculates while the emptied shipment
       # is still attached, before the caller reconciles it away.

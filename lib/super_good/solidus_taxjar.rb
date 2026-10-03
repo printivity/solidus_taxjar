@@ -29,6 +29,7 @@ module SuperGood
       attr_accessor :custom_order_params
       attr_accessor :discount_calculator
       attr_accessor :exception_handler
+      attr_accessor :http_timeouts
       attr_accessor :job_queue
       attr_accessor :line_item_tax_label_maker
       attr_accessor :line_item_unit_price_calculator
@@ -76,6 +77,13 @@ module SuperGood
     self.exception_handler = ->(e) {
       logger.error "An error occurred while fetching TaxJar tax rates - #{e}: #{e.message}"
     }
+    # Seconds allowed for each phase of a TaxJar HTTP call. Tax is fetched inside the checkout
+    # request, once per shipping address, so a TaxJar call with no timeout holds that request
+    # open for as long as TaxJar takes to answer. A call that runs past these limits raises
+    # Taxjar::Error, which the tax calculator reports through exception_handler.
+    #
+    # These are per socket operation (the http gem's per-operation timeouts), not a total.
+    self.http_timeouts = {connect: 2, write: 5, read: 8}
     self.job_queue = :default
     self.line_item_tax_label_maker = ->(taxjar_line_item, spree_line_item) { "Sales Tax" }
     self.line_item_unit_price_calculator = ->(spree_line_item) { spree_line_item.price }
